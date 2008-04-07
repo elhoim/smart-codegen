@@ -14,4 +14,28 @@
             </file>
         </folder>
     </folder>
+    <folder name="Loaders">
+        <folder name="text">
+            <folder name="x-java">
+                <folder name="Actions">
+                    <file name="com-smartitengineering-tostringgenerator-GenerateToString.shadow">
+                        <attr name="originalFile" stringvalue="Actions/Source/com-smartitengineering-tostringgenerator-GenerateToString.instance"/>
+                        <attr name="position" intvalue="320"/>
+                    </file>
+                </folder>
+            </folder>
+        </folder>
+    </folder>
+    <folder name="Editors">
+        <folder name="text">
+            <folder name="x-java">
+                <folder name="Popup">
+                    <file name="com-smartitengineering-tostringgenerator-GenerateToString.shadow">
+                        <attr name="originalFile" stringvalue="Actions/Source/com-smartitengineering-tostringgenerator-GenerateToString.instance"/>
+                        <attr name="position" intvalue="1580"/>
+                    </file>
+                </folder>
+            </folder>
+        </folder>
+    </folder>
 </filesystem>
