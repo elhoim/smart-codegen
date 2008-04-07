@@ -20,37 +20,13 @@
  */
 package com.smartitengineering.loggergenerator;
 
-import com.sun.source.tree.BlockTree;
-import com.sun.source.tree.CaseTree;
-import com.sun.source.tree.CatchTree;
-import com.sun.source.tree.ClassTree;
-import com.sun.source.tree.CompilationUnitTree;
-import com.sun.source.tree.DoWhileLoopTree;
-import com.sun.source.tree.EnhancedForLoopTree;
-import com.sun.source.tree.ExpressionTree;
-import com.sun.source.tree.ForLoopTree;
-import com.sun.source.tree.IfTree;
-import com.sun.source.tree.ImportTree;
-import com.sun.source.tree.MemberSelectTree;
-import com.sun.source.tree.MethodTree;
-import com.sun.source.tree.StatementTree;
-import com.sun.source.tree.SwitchTree;
-import com.sun.source.tree.Tree;
-import com.sun.source.tree.Tree.Kind;
-import com.sun.source.tree.TryTree;
-import com.sun.source.tree.TypeParameterTree;
-import com.sun.source.tree.WhileLoopTree;
-import java.util.List;
 import java.util.logging.ConsoleHandler;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.regex.Pattern;
 import org.netbeans.api.java.source.CancellableTask;
 import org.netbeans.api.java.source.JavaSource;
-import org.netbeans.api.java.source.JavaSource.Phase;
 import org.netbeans.api.java.source.ModificationResult;
-import org.netbeans.api.java.source.TreeMaker;
 import org.netbeans.api.java.source.WorkingCopy;
 import org.openide.cookies.EditorCookie;
 import org.openide.filesystems.FileObject;
@@ -62,7 +38,10 @@ import org.openide.util.actions.CookieAction;
 
 public final class LoggerGenerator extends CookieAction {
 
-    public static final String IMPORT_JAVA_UTIL_LOGGER_QUALIFIER = "java\\.util\\.logging\\.(\\*|Logger)";
+    public static final String JAVA_UTIL_LOGGER_QUALIFIER = "java\\.util\\.logging\\.(\\*|Logger)";
+    
+    public static final String JAVA_UTIL_LOGGER_IDENTIFIER = "(java\\.util\\.logging\\.)?(\\*|Logger)";
+    
     private static final Logger LOGGER = Logger.getLogger(LoggerGenerator.class.getName());
     static {
         LOGGER.setLevel(Level.ALL);
@@ -108,7 +87,7 @@ public final class LoggerGenerator extends CookieAction {
                         if (LOGGER.isLoggable(Level.FINER)) {
                             LOGGER.finer("Received Working Copy: " + workingCopy);
                         }
-                        LoggerGenerationFactory.addLogger(workingCopy, true);
+                        LoggerGenerationFactory.addLogger(workingCopy, false, true, Level.FINEST);
                     }
                 };
                 try {
