@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE filesystem PUBLIC "-//NetBeans//DTD Filesystem 1.1//EN" "http://www.netbeans.org/dtds/filesystem-1_1.dtd">
+<filesystem>
+    <folder name="Actions">
+        <folder name="Source">
+            <file name="com-smartitengineering-loggergenerator-LoggerGenerator.instance"/>
+        </folder>
+    </folder>
+    <folder name="Editors">
+        <folder name="text">
+            <folder name="x-java">
+                <folder name="Popup">
+                    <file name="com-smartitengineering-loggergenerator-LoggerGenerator.shadow">
+                        <attr name="originalFile" stringvalue="Actions/Source/com-smartitengineering-loggergenerator-LoggerGenerator.instance"/>
+                        <attr name="position" intvalue="1580"/>
+                    </file>
+                </folder>
+            </folder>
+        </folder>
+    </folder>
+    <folder name="Loaders">
+        <folder name="text">
+            <folder name="x-java">
+                <folder name="Actions">
+                    <file name="com-smartitengineering-loggergenerator-LoggerGenerator.shadow">
+                        <attr name="originalFile" stringvalue="Actions/Source/com-smartitengineering-loggergenerator-LoggerGenerator.instance"/>
+                        <attr name="position" intvalue="320"/>
+                    </file>
+                </folder>
+            </folder>
+        </folder>
+    </folder>
+    <folder name="Menu">
+        <folder name="Source">
+            <file name="com-smartitengineering-loggergenerator-LoggerGenerator.shadow">
+                <attr name="originalFile" stringvalue="Actions/Source/com-smartitengineering-loggergenerator-LoggerGenerator.instance"/>
+                <attr name="position" intvalue="200"/>
+            </file>
+        </folder>
+    </folder>
+</filesystem>
