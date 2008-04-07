@@ -4,13 +4,23 @@
  */
 package com.smartitengineering.loggergenerator;
 
+import com.sun.source.tree.BlockTree;
+import com.sun.source.tree.CatchTree;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.CompilationUnitTree;
+import com.sun.source.tree.DoWhileLoopTree;
+import com.sun.source.tree.EnhancedForLoopTree;
+import com.sun.source.tree.ForLoopTree;
+import com.sun.source.tree.IfTree;
 import com.sun.source.tree.ImportTree;
 import com.sun.source.tree.MemberSelectTree;
+import com.sun.source.tree.MethodTree;
+import com.sun.source.tree.StatementTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.Tree.Kind;
+import com.sun.source.tree.TryTree;
 import com.sun.source.tree.TypeParameterTree;
+import com.sun.source.tree.WhileLoopTree;
 import java.util.List;
 import java.util.logging.ConsoleHandler;
 import java.util.logging.Handler;
@@ -114,6 +124,7 @@ public final class LoggerGenerator extends CookieAction {
             }
             for (ImportTree importTree : imports) {
                 LOGGER.finest("Import Q-Id: " + importTree.getQualifiedIdentifier().getKind().name());
+                LOGGER.finest("Static Import?: " + importTree.isStatic());
                 LOGGER.finest("Import Tree: " + importTree.toString() + " Length: " + importTree.toString().length() + '\n');
                 MemberSelectTree memberSelectTree = (MemberSelectTree) importTree.getQualifiedIdentifier();
                 LOGGER.finest("Member Selected ID: " + memberSelectTree.getIdentifier());
@@ -124,18 +135,95 @@ public final class LoggerGenerator extends CookieAction {
             for (Tree member : members) {
                 Kind memberKind = member.getKind();
                 LOGGER.finest("Member Type: " + memberKind.name());
-                if(memberKind.equals(Kind.METHOD)) {
-                    
-                }
-                else if(memberKind.equals(Kind.VARIABLE)) {
-                    
-                }
-                else if(memberKind.equals(Kind.BLOCK)) {
-                    
-                }
-                else {
+                if (memberKind.equals(Kind.METHOD)) {
+                    MethodTree methodTree = (MethodTree) member;
+                    LOGGER.finest("Method Name: " + methodTree.getName().toString());
+                    BlockTree blockTree = methodTree.getBody();
+                    logBlockTree(blockTree);
+                } else if (memberKind.equals(Kind.VARIABLE)) {
+                } else if (memberKind.equals(Kind.BLOCK)) {
+                    logBlockTree((BlockTree) member);
+                } else {
                     LOGGER.finest("Unrecognized block: " + memberKind);
                 }
+            }
+        }
+    }
+
+    private void logBlockTree(BlockTree blockTree) {
+        if (LOGGER.isLoggable(Level.FINEST)) {
+            LOGGER.finest("------------------Block Start------------------");
+            LOGGER.finest("isStatic: " + blockTree.isStatic());
+            List<? extends StatementTree> statements = blockTree.getStatements();
+            for (StatementTree statementTree : statements) {
+                Kind statementKind = statementTree.getKind();
+                LOGGER.finest("Statement Kind: " + statementKind.name());
+                switch (statementKind) {
+                    case IF:
+                        LOGGER.finest("If block");
+                        IfTree ifTree = (IfTree) statementTree;
+                        LOGGER.finest("Condition: " + ifTree.getCondition());
+                        handleStatement("If - Then body", ifTree.getThenStatement());
+                        handleStatement("If - Else body", ifTree.getElseStatement());
+                        break;
+                    case FOR_LOOP:
+                        LOGGER.finest("For Loop");
+                        ForLoopTree forLoopTree = (ForLoopTree) statementTree;
+                        LOGGER.finest("Initializer" + forLoopTree.getInitializer());
+                        LOGGER.finest("Condition: " + forLoopTree.getCondition());
+                        LOGGER.finest("Update: " + forLoopTree.getUpdate());
+                        handleStatement("For Loop body", forLoopTree.getStatement());
+                        break;
+                    case ENHANCED_FOR_LOOP:
+                        LOGGER.finest("Enhanced For Loop");
+                        EnhancedForLoopTree enhancedForLoopTree = (EnhancedForLoopTree) statementTree;
+                        LOGGER.finest("Expression: " + enhancedForLoopTree.getExpression());
+                        LOGGER.finest("Variable: " + enhancedForLoopTree.getVariable());
+                        handleStatement("Enhanced For Loop body", enhancedForLoopTree.getStatement());
+                        break;
+                    case WHILE_LOOP:
+                        LOGGER.finest("While Loop");
+                        WhileLoopTree whileTree = (WhileLoopTree) statementTree;
+                        LOGGER.finest("Condition: " + whileTree.getCondition());
+                        handleStatement("While Loop body", whileTree.getStatement());
+                        break;
+                    case DO_WHILE_LOOP:
+                        LOGGER.finest("Do-While Loop");
+                        DoWhileLoopTree loopTree = (DoWhileLoopTree) statementTree;
+                        LOGGER.finest("Condition: " + loopTree.getCondition());
+                        handleStatement("Do-While Loop body", loopTree.getStatement());
+                        break;
+                    case TRY:
+                        LOGGER.finest("Try Block");
+                        TryTree tree = (TryTree) statementTree;
+                        logBlockTree(tree.getBlock());
+                        List<? extends CatchTree> catches = tree.getCatches();
+                        for(CatchTree catchTree : catches) {
+                            LOGGER.finest("Catch Block For: " + catchTree.getParameter());
+                            logBlockTree(catchTree.getBlock());
+                        }
+                        break;
+                    case SWITCH:
+                        break;
+                    case CASE:
+                        break;
+                    default:
+                    case EXPRESSION_STATEMENT:
+                        LOGGER.finest(statementTree.toString());
+                }
+            }
+            LOGGER.finest("-------------------Block End-------------------");
+        }
+    }
+
+    private void handleStatement(String source, StatementTree statementTree) {
+        if (LOGGER.isLoggable(Level.FINEST)) {
+            Kind statementKind = statementTree.getKind();
+            LOGGER.finest("Kind of " + (source != null ? source : "Statement") + ": " + statementKind);
+            if (statementKind.equals(Kind.BLOCK)) {
+                logBlockTree((BlockTree) statementTree);
+            } else {
+                LOGGER.finest((source != null ? source : "Statement") + ": " + statementTree);
             }
         }
     }
