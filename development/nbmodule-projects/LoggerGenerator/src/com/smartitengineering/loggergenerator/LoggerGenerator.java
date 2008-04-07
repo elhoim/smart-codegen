@@ -1,6 +1,22 @@
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
+/**
+ *    This NetBeans Module is responsible for generating Java Util Logger and 
+ *    initializing its handlers
+ * 
+ *    Copyright (C) 2008  Imran M Yousuf (imran@smartitengineering.com)
+ *
+ *    This program is free software; you can redistribute it and/or modify
+ *    it under the terms of the GNU General Public License as published by
+ *    the Free Software Foundation; either version 2 of the License, or
+ *    (at your option) any later version.
+ *
+ *    This program is distributed in the hope that it will be useful,
+ *    but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *    GNU General Public License for more details.
+ *
+ *    You should have received a copy of the GNU General Public License along
+ *    with this program; if not, write to the Free Software Foundation, Inc.,
+ *    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 package com.smartitengineering.loggergenerator;
 
@@ -92,16 +108,7 @@ public final class LoggerGenerator extends CookieAction {
                         if (LOGGER.isLoggable(Level.FINER)) {
                             LOGGER.finer("Received Working Copy: " + workingCopy);
                         }
-                        workingCopy.toPhase(Phase.RESOLVED);
-                        TreeMaker make = workingCopy.getTreeMaker();
-                        CompilationUnitTree compilationUnitTree = workingCopy.getCompilationUnit();
-                        for (Tree typeDecl : compilationUnitTree.getTypeDecls()) {
-                            if (Tree.Kind.CLASS == typeDecl.getKind()) {
-                                ClassTree clazz = (ClassTree) typeDecl;
-                                LoggerGenerationFactory.logDebugInfoOfWorkingCopy(clazz, workingCopy);
-                            }
-                        }
-
+                        LoggerGenerationFactory.addLogger(workingCopy, true);
                     }
                 };
                 try {

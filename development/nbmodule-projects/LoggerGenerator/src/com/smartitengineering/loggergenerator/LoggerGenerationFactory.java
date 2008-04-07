@@ -1,6 +1,22 @@
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
+/**
+ *    This NetBeans Module is responsible for generating Java Util Logger and 
+ *    initializing its handlers
+ * 
+ *    Copyright (C) 2008  Imran M Yousuf (imran@smartitengineering.com)
+ *
+ *    This program is free software; you can redistribute it and/or modify
+ *    it under the terms of the GNU General Public License as published by
+ *    the Free Software Foundation; either version 2 of the License, or
+ *    (at your option) any later version.
+ *
+ *    This program is distributed in the hope that it will be useful,
+ *    but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *    GNU General Public License for more details.
+ *
+ *    You should have received a copy of the GNU General Public License along
+ *    with this program; if not, write to the Free Software Foundation, Inc.,
+ *    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 package com.smartitengineering.loggergenerator;
 
@@ -8,13 +24,17 @@ import com.sun.source.tree.BlockTree;
 import com.sun.source.tree.CaseTree;
 import com.sun.source.tree.CatchTree;
 import com.sun.source.tree.ClassTree;
+import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.DoWhileLoopTree;
 import com.sun.source.tree.EnhancedForLoopTree;
+import com.sun.source.tree.ExpressionStatementTree;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.ForLoopTree;
+import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.IfTree;
 import com.sun.source.tree.ImportTree;
 import com.sun.source.tree.MemberSelectTree;
+import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.StatementTree;
 import com.sun.source.tree.SwitchTree;
@@ -22,13 +42,17 @@ import com.sun.source.tree.Tree;
 import com.sun.source.tree.Tree.Kind;
 import com.sun.source.tree.TryTree;
 import com.sun.source.tree.TypeParameterTree;
+import com.sun.source.tree.VariableTree;
 import com.sun.source.tree.WhileLoopTree;
+import java.io.IOException;
 import java.util.List;
 import java.util.logging.ConsoleHandler;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
+import org.netbeans.api.java.source.JavaSource.Phase;
+import org.netbeans.api.java.source.TreeMaker;
 import org.netbeans.api.java.source.WorkingCopy;
 
 /**
@@ -37,7 +61,7 @@ import org.netbeans.api.java.source.WorkingCopy;
  */
 public class LoggerGenerationFactory {
 
-    private static final Logger LOGGER = Logger.getLogger(LoggerGenerator.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(LoggerGenerationFactory.class.getName());
     
 
     static {
@@ -52,6 +76,25 @@ public class LoggerGenerationFactory {
         if (!hasConsoleHandler) {
             LOGGER.addHandler(new ConsoleHandler());
         }
+    }
+
+    public static void addLogger(WorkingCopy workingCopy, boolean ignoreExisting) throws IOException {
+        workingCopy.toPhase(Phase.RESOLVED);
+        TreeMaker make = workingCopy.getTreeMaker();
+        CompilationUnitTree compilationUnitTree = workingCopy.getCompilationUnit();
+        for (Tree typeDecl : compilationUnitTree.getTypeDecls()) {
+            if (Tree.Kind.CLASS == typeDecl.getKind()) {
+                ClassTree clazz = (ClassTree) typeDecl;
+                LoggerGenerationFactory.logDebugInfoOfWorkingCopy(clazz, workingCopy);
+                if (!ignoreExisting) {
+                    checkWhetherLoggerExists(clazz, workingCopy);
+                }
+            }
+        }
+    }
+
+    private static void checkWhetherLoggerExists(ClassTree clazz, WorkingCopy workingCopy) {
+        
     }
 
     public static void logDebugInfoOfWorkingCopy(ClassTree clazz, WorkingCopy workingCopy) {
@@ -81,6 +124,8 @@ public class LoggerGenerationFactory {
                     BlockTree blockTree = methodTree.getBody();
                     logBlockTree(blockTree);
                 } else if (memberKind.equals(Kind.VARIABLE)) {
+                    VariableTree variableTree = (VariableTree) member;
+                    logVariableTree(variableTree);
                 } else if (memberKind.equals(Kind.BLOCK)) {
                     logBlockTree((BlockTree) member);
                 } else {
@@ -98,13 +143,13 @@ public class LoggerGenerationFactory {
             for (StatementTree statementTree : statements) {
                 Kind statementKind = statementTree.getKind();
                 LOGGER.finest("Statement Kind: " + statementKind.name());
-                handleStatement(null, statementTree);
+                logStatementTree(null, statementTree);
             }
             LOGGER.finest("-------------------Block End-------------------");
         }
     }
 
-    public static void handleStatement(String source, StatementTree statementTree) {
+    public static void logStatementTree(String source, StatementTree statementTree) {
         if (LOGGER.isLoggable(Level.FINEST)) {
             Kind statementKind = statementTree.getKind();
             LOGGER.finest("Kind of " + (source != null ? source : "Statement") + ": " + statementKind);
@@ -113,35 +158,35 @@ public class LoggerGenerationFactory {
                     LOGGER.finest("If block");
                     IfTree ifTree = (IfTree) statementTree;
                     LOGGER.finest("Condition: " + ifTree.getCondition());
-                    handleStatement("If - Then body", ifTree.getThenStatement());
-                    handleStatement("If - Else body", ifTree.getElseStatement());
+                    logStatementTree("If - Then body", ifTree.getThenStatement());
+                    logStatementTree("If - Else body", ifTree.getElseStatement());
                     break;
                 case FOR_LOOP:
                     LOGGER.finest("For Loop");
                     ForLoopTree forLoopTree = (ForLoopTree) statementTree;
-                    LOGGER.finest("Initializer" + forLoopTree.getInitializer());
+                    LOGGER.finest("Initializer: " + forLoopTree.getInitializer());
                     LOGGER.finest("Condition: " + forLoopTree.getCondition());
                     LOGGER.finest("Update: " + forLoopTree.getUpdate());
-                    handleStatement("For Loop body", forLoopTree.getStatement());
+                    logStatementTree("For Loop body", forLoopTree.getStatement());
                     break;
                 case ENHANCED_FOR_LOOP:
                     LOGGER.finest("Enhanced For Loop");
                     EnhancedForLoopTree enhancedForLoopTree = (EnhancedForLoopTree) statementTree;
                     LOGGER.finest("Expression: " + enhancedForLoopTree.getExpression());
                     LOGGER.finest("Variable: " + enhancedForLoopTree.getVariable());
-                    handleStatement("Enhanced For Loop body", enhancedForLoopTree.getStatement());
+                    logStatementTree("Enhanced For Loop body", enhancedForLoopTree.getStatement());
                     break;
                 case WHILE_LOOP:
                     LOGGER.finest("While Loop");
                     WhileLoopTree whileTree = (WhileLoopTree) statementTree;
                     LOGGER.finest("Condition: " + whileTree.getCondition());
-                    handleStatement("While Loop body", whileTree.getStatement());
+                    logStatementTree("While Loop body", whileTree.getStatement());
                     break;
                 case DO_WHILE_LOOP:
                     LOGGER.finest("Do-While Loop");
                     DoWhileLoopTree doWhileLoopTree = (DoWhileLoopTree) statementTree;
                     LOGGER.finest("Condition: " + doWhileLoopTree.getCondition());
-                    handleStatement("Do-While Loop body", doWhileLoopTree.getStatement());
+                    logStatementTree("Do-While Loop body", doWhileLoopTree.getStatement());
                     break;
                 case TRY:
                     LOGGER.finest("Try Block");
@@ -162,16 +207,68 @@ public class LoggerGenerationFactory {
                         LOGGER.finest("Case Expression: " + caseExpression);
                         List<? extends StatementTree> caseStatements = caseTree.getStatements();
                         for (StatementTree caseStatement : caseStatements) {
-                            handleStatement("Case " + caseExpression, caseStatement);
+                            logStatementTree("Case " + caseExpression, caseStatement);
                         }
                     }
                     break;
                 case BLOCK:
                     logBlockTree((BlockTree) statementTree);
                     break;
-                default:
                 case EXPRESSION_STATEMENT:
-                    LOGGER.finest(statementTree.toString());
+                    logExpressionStatementTree((ExpressionStatementTree) statementTree);
+                    break;
+                case VARIABLE:
+                    logVariableTree((VariableTree) statementTree);
+                    break;
+                default:
+                    LOGGER.finest(statementTree.getKind().name() + ": " + statementTree.toString());
+            }
+        }
+    }
+
+    public static void logExpressionStatementTree(ExpressionStatementTree expressionStatementTree) {
+        if (LOGGER.isLoggable(Level.FINEST)) {
+            LOGGER.finest(expressionStatementTree.getExpression().getKind().name() + ": " + expressionStatementTree.toString());
+            logExpressionTree(expressionStatementTree.getExpression());
+        }
+    }
+
+    public static void logExpressionTree(ExpressionTree expressionTree) {
+        if (LOGGER.isLoggable(Level.FINEST)) {
+            Kind expressionKind = expressionTree.getKind();
+            switch (expressionKind) {
+                case METHOD_INVOCATION:
+                    LOGGER.finest("Method Invocation!");
+                    MethodInvocationTree methodInvocationTree = (MethodInvocationTree) expressionTree;
+                    LOGGER.finest(methodInvocationTree.getMethodSelect().getKind().name() + ": " + methodInvocationTree.getMethodSelect());
+                    break;
+                default:
+                    LOGGER.finest(expressionKind.name() + ": " + expressionTree.toString());
+            }
+        }
+    }
+
+    public static void logVariableTree(VariableTree variableTree) {
+        if (LOGGER.isLoggable(Level.FINEST)) {
+            LOGGER.finest("Variable Name: " + variableTree.getName().toString());
+            Tree type = variableTree.getType();
+            Kind variableTypeKind = type.getKind();
+            switch (variableTypeKind) {
+                case IDENTIFIER:
+                    IdentifierTree identifierTree = (IdentifierTree) type;
+                    LOGGER.finest("Identifier Type: " + identifierTree.getName().toString());
+                    break;
+                case MEMBER_SELECT:
+                    MemberSelectTree memberSelectTree = (MemberSelectTree) type;
+                    LOGGER.finest("Member Select Expression: " + memberSelectTree.getExpression().toString());
+                    LOGGER.finest("Member Select Name: " + memberSelectTree.getIdentifier().toString());
+                    break;
+                case ARRAY_TYPE:
+                    ;
+                case PARAMETERIZED_TYPE:
+                    ;
+                default:
+                    LOGGER.finest("Type Tree (" + variableTypeKind + "): " + type.toString());
             }
         }
     }
