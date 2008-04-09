@@ -3,6 +3,7 @@
 <filesystem>
     <folder name="Actions">
         <folder name="Source">
+            <file name="com-smartitengineering-loggergenerator-ConvertSysOutToLog.instance"/>
             <file name="com-smartitengineering-loggergenerator-LoggerGenerator.instance"/>
         </folder>
     </folder>
@@ -10,9 +11,13 @@
         <folder name="text">
             <folder name="x-java">
                 <folder name="Popup">
+                    <file name="com-smartitengineering-loggergenerator-ConvertSysOutToLog.shadow">
+                        <attr name="originalFile" stringvalue="Actions/Source/com-smartitengineering-loggergenerator-ConvertSysOutToLog.instance"/>
+                        <attr name="position" intvalue="770"/>
+                    </file>
                     <file name="com-smartitengineering-loggergenerator-LoggerGenerator.shadow">
                         <attr name="originalFile" stringvalue="Actions/Source/com-smartitengineering-loggergenerator-LoggerGenerator.instance"/>
-                        <attr name="position" intvalue="1580"/>
+                        <attr name="position" intvalue="770"/>
                     </file>
                 </folder>
             </folder>
@@ -22,9 +27,13 @@
         <folder name="text">
             <folder name="x-java">
                 <folder name="Actions">
+                    <file name="com-smartitengineering-loggergenerator-ConvertSysOutToLog.shadow">
+                        <attr name="originalFile" stringvalue="Actions/Source/com-smartitengineering-loggergenerator-ConvertSysOutToLog.instance"/>
+                        <attr name="position" intvalue="150"/>
+                    </file>
                     <file name="com-smartitengineering-loggergenerator-LoggerGenerator.shadow">
                         <attr name="originalFile" stringvalue="Actions/Source/com-smartitengineering-loggergenerator-LoggerGenerator.instance"/>
-                        <attr name="position" intvalue="320"/>
+                        <attr name="position" intvalue="150"/>
                     </file>
                 </folder>
             </folder>
@@ -32,6 +41,10 @@
     </folder>
     <folder name="Menu">
         <folder name="Source">
+            <file name="com-smartitengineering-loggergenerator-ConvertSysOutToLog.shadow">
+                <attr name="originalFile" stringvalue="Actions/Source/com-smartitengineering-loggergenerator-ConvertSysOutToLog.instance"/>
+                <attr name="position" intvalue="100"/>
+            </file>
             <file name="com-smartitengineering-loggergenerator-LoggerGenerator.shadow">
                 <attr name="originalFile" stringvalue="Actions/Source/com-smartitengineering-loggergenerator-LoggerGenerator.instance"/>
                 <attr name="position" intvalue="200"/>

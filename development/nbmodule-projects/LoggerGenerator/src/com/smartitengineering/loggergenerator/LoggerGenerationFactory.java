@@ -84,6 +84,12 @@ public class LoggerGenerationFactory {
             LOGGER.addHandler(new ConsoleHandler());
         }
     }
+    
+    private final static void log (Level level, String msg) {
+        if(LOGGER.isLoggable(level)) {
+            LOGGER.log(level, msg);
+        }
+    }
 
     public static void addLogger(WorkingCopy workingCopy, boolean ignoreExisting, 
             boolean setLevel, Level level) throws IOException {
