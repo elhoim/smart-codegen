@@ -36,9 +36,13 @@ import org.openide.util.HelpCtx;
 import org.openide.util.NbBundle;
 import org.openide.util.actions.CookieAction;
 
-public final class GenerateToString extends CookieAction {
+public final class GenerateToString
+    extends CookieAction {
 
-    private static final Logger LOGGER = Logger.getLogger(GenerateToString.class.getName());
+    private static final Logger LOGGER =
+        Logger.getLogger(GenerateToString.class.getName());
+    
+
     static {
         Handler[] handlers = LOGGER.getHandlers();
         boolean hasConsoleHandler = false;
@@ -60,7 +64,8 @@ public final class GenerateToString extends CookieAction {
             if (LOGGER.isLoggable(Level.FINER)) {
                 LOGGER.finer(activatedNode.getDisplayName());
             }
-            FileObject fileObject = activatedNode.getLookup().lookup(FileObject.class);
+            FileObject fileObject = activatedNode.getLookup().
+                lookup(FileObject.class);
             if (LOGGER.isLoggable(Level.FINER)) {
                 LOGGER.finer(fileObject.getPath());
             }
@@ -83,7 +88,8 @@ public final class GenerateToString extends CookieAction {
                     }
                 };
                 try {
-                    ModificationResult modificationResult = eSource.runModificationTask(cancellableTask);
+                    ModificationResult modificationResult =
+                        eSource.runModificationTask(cancellableTask);
                     modificationResult.commit();
                 } catch (Exception ex) {
                     LOGGER.warning(ex.getMessage());
@@ -99,7 +105,8 @@ public final class GenerateToString extends CookieAction {
     }
 
     public String getName() {
-        return NbBundle.getMessage(GenerateToString.class, "CTL_GenerateToString");
+        return NbBundle.getMessage(GenerateToString.class,
+            "CTL_GenerateToString");
     }
 
     protected Class[] cookieClasses() {
@@ -119,6 +126,5 @@ public final class GenerateToString extends CookieAction {
     protected boolean asynchronous() {
         return false;
     }
-
 }
 

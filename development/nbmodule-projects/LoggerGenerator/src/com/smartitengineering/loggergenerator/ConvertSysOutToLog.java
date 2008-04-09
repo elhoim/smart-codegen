@@ -36,9 +36,13 @@ import org.openide.util.HelpCtx;
 import org.openide.util.NbBundle;
 import org.openide.util.actions.CookieAction;
 
-public final class ConvertSysOutToLog extends CookieAction {
+public final class ConvertSysOutToLog
+    extends CookieAction {
 
-    private static final Logger LOGGER = Logger.getLogger(ConvertSysOutToLog.class.getName());
+    private static final Logger LOGGER =
+        Logger.getLogger(ConvertSysOutToLog.class.getName());
+    
+
     static {
         LOGGER.setLevel(Level.ALL);
         Handler[] handlers = LOGGER.getHandlers();
@@ -52,7 +56,7 @@ public final class ConvertSysOutToLog extends CookieAction {
             LOGGER.addHandler(new ConsoleHandler());
         }
     }
-    
+
     protected void performAction(Node[] activatedNodes) {
         if (LOGGER.isLoggable(Level.FINER)) {
             LOGGER.finer("Activated Nodes: " + activatedNodes);
@@ -61,7 +65,8 @@ public final class ConvertSysOutToLog extends CookieAction {
             if (LOGGER.isLoggable(Level.FINER)) {
                 LOGGER.finer(activatedNode.getDisplayName());
             }
-            FileObject fileObject = activatedNode.getLookup().lookup(FileObject.class);
+            FileObject fileObject = activatedNode.getLookup().
+                lookup(FileObject.class);
             if (LOGGER.isLoggable(Level.FINER)) {
                 LOGGER.finer(fileObject.getPath());
             }
@@ -83,11 +88,13 @@ public final class ConvertSysOutToLog extends CookieAction {
                         if (LOGGER.isLoggable(Level.FINER)) {
                             LOGGER.finer("Received Working Copy: " + workingCopy);
                         }
-                        LoggerGenerationFactory.convertSysOutToLog(workingCopy, false, true, Level.FINEST);
+                        LoggerGenerationFactory.convertSysOutToLog(workingCopy,
+                            false, true, Level.FINEST);
                     }
                 };
                 try {
-                    ModificationResult modificationResult = eSource.runModificationTask(cancellableTask);
+                    ModificationResult modificationResult =
+                        eSource.runModificationTask(cancellableTask);
                     modificationResult.commit();
                 } catch (Exception ex) {
                     LOGGER.warning(ex.getMessage());
@@ -102,7 +109,8 @@ public final class ConvertSysOutToLog extends CookieAction {
     }
 
     public String getName() {
-        return NbBundle.getMessage(ConvertSysOutToLog.class, "CTL_ConvertSysOutToLog");
+        return NbBundle.getMessage(ConvertSysOutToLog.class,
+            "CTL_ConvertSysOutToLog");
     }
 
     protected Class[] cookieClasses() {
