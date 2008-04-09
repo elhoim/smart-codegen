@@ -20,17 +20,81 @@
  */
 package com.smartitengineering.loggergenerator;
 
+import java.util.logging.ConsoleHandler;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import org.netbeans.api.java.source.CancellableTask;
+import org.netbeans.api.java.source.JavaSource;
+import org.netbeans.api.java.source.ModificationResult;
+import org.netbeans.api.java.source.WorkingCopy;
 import org.openide.cookies.EditorCookie;
+import org.openide.filesystems.FileObject;
 import org.openide.nodes.Node;
+import org.openide.util.Exceptions;
 import org.openide.util.HelpCtx;
 import org.openide.util.NbBundle;
 import org.openide.util.actions.CookieAction;
 
 public final class ConvertSysOutToLog extends CookieAction {
 
+    private static final Logger LOGGER = Logger.getLogger(ConvertSysOutToLog.class.getName());
+    static {
+        LOGGER.setLevel(Level.ALL);
+        Handler[] handlers = LOGGER.getHandlers();
+        boolean hasConsoleHandler = false;
+        for (Handler handler : handlers) {
+            if (handler instanceof ConsoleHandler) {
+                hasConsoleHandler = true;
+            }
+        }
+        if (!hasConsoleHandler) {
+            LOGGER.addHandler(new ConsoleHandler());
+        }
+    }
+    
     protected void performAction(Node[] activatedNodes) {
-        EditorCookie editorCookie = activatedNodes[0].getLookup().lookup(EditorCookie.class);
-    // TODO use editorCookie
+        if (LOGGER.isLoggable(Level.FINER)) {
+            LOGGER.finer("Activated Nodes: " + activatedNodes);
+        }
+        for (Node activatedNode : activatedNodes) {
+            if (LOGGER.isLoggable(Level.FINER)) {
+                LOGGER.finer(activatedNode.getDisplayName());
+            }
+            FileObject fileObject = activatedNode.getLookup().lookup(FileObject.class);
+            if (LOGGER.isLoggable(Level.FINER)) {
+                LOGGER.finer(fileObject.getPath());
+            }
+            JavaSource eSource = JavaSource.forFileObject(fileObject);
+            if (eSource == null) {
+                if (LOGGER.isLoggable(Level.FINER)) {
+                    LOGGER.finer("eSource is null");
+                }
+            } else {
+                CancellableTask<WorkingCopy> cancellableTask = new CancellableTask<WorkingCopy>() {
+
+                    public void cancel() {
+                        if (LOGGER.isLoggable(Level.FINER)) {
+                            LOGGER.finer("Cancelled generating toString");
+                        }
+                    }
+
+                    public void run(WorkingCopy workingCopy) throws Exception {
+                        if (LOGGER.isLoggable(Level.FINER)) {
+                            LOGGER.finer("Received Working Copy: " + workingCopy);
+                        }
+                        LoggerGenerationFactory.convertSysOutToLog(workingCopy, false, true, Level.FINEST);
+                    }
+                };
+                try {
+                    ModificationResult modificationResult = eSource.runModificationTask(cancellableTask);
+                    modificationResult.commit();
+                } catch (Exception ex) {
+                    LOGGER.warning(ex.getMessage());
+                    Exceptions.printStackTrace(ex);
+                }
+            }
+        }
     }
 
     protected int mode() {

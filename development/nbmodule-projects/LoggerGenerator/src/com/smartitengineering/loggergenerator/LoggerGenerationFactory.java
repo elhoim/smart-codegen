@@ -84,14 +84,14 @@ public class LoggerGenerationFactory {
             LOGGER.addHandler(new ConsoleHandler());
         }
     }
-    
-    private final static void log (Level level, String msg) {
-        if(LOGGER.isLoggable(level)) {
+
+    private final static void log(Level level, String msg) {
+        if (LOGGER.isLoggable(level)) {
             LOGGER.log(level, msg);
         }
     }
 
-    public static void addLogger(WorkingCopy workingCopy, boolean ignoreExisting, 
+    public static void addLogger(WorkingCopy workingCopy, boolean ignoreExisting,
             boolean setLevel, Level level) throws IOException {
         workingCopy.toPhase(Phase.RESOLVED);
         TreeMaker make = workingCopy.getTreeMaker();
@@ -121,8 +121,8 @@ public class LoggerGenerationFactory {
                             make.Identifier(LOGGER.getClass().getName()), "getLogger"),
                             Collections.<ExpressionTree>singletonList(make.Literal(className))));
                     MethodInvocationTree methodInvocationTree = make.MethodInvocation(
-                            Collections.<ExpressionTree>emptyList(), 
-                            make.MemberSelect(make.Identifier(className), "initLoggerHandlers"), 
+                            Collections.<ExpressionTree>emptyList(),
+                            make.MemberSelect(make.Identifier(className), "initLoggerHandlers"),
                             Collections.<ExpressionTree>emptyList());
                     StringBuilder content = new StringBuilder(
                             "{ java.util.logging.Handler[] handlers = LOGGER.getHandlers();" +
@@ -135,22 +135,34 @@ public class LoggerGenerationFactory {
                             "if (!hasConsoleHandler) {" +
                             "LOGGER.addHandler(new java.util.logging.ConsoleHandler());" +
                             "}");
-                    if(setLevel) {
-                        content.append("LOGGER.setLevel(").append(Level.class.getName()).append(".")
-                                .append(level.getName())
-                                .append(");");
+                    if (setLevel) {
+                        content.append("LOGGER.setLevel(").append(Level.class.getName()).append(".").append(level.getName()).append(");");
                     }
                     content.append("}");
                     ExpressionTree returnType = make.Identifier("void");
                     MethodTree initLoggerHandlersMethod = make.Method(make.Modifiers(new HashSet(modifiers)), "initLoggerHandlers", returnType, Collections.<TypeParameterTree>emptyList(), Collections.<VariableTree>emptyList(), Collections.<ExpressionTree>emptyList(), content.toString(), null);
                     List<StatementTree> statements = new ArrayList<StatementTree>();
-                    Collections.addAll(statements, make.ExpressionStatement(assignmentTree), 
+                    Collections.addAll(statements, make.ExpressionStatement(assignmentTree),
                             make.ExpressionStatement(methodInvocationTree));
                     BlockTree staticInitializer = make.Block(statements, true);
                     modifiedClazz = make.insertClassMember(modifiedClazz, position++, staticInitializer);
                     modifiedClazz = make.insertClassMember(modifiedClazz, position++, initLoggerHandlersMethod);
                     workingCopy.rewrite(clazz, modifiedClazz);
                 }
+            }
+        }
+    }
+
+    public static void convertSysOutToLog(WorkingCopy workingCopy, boolean ignoreExisting,
+            boolean setLevel, Level level) throws IOException {
+        workingCopy.toPhase(Phase.RESOLVED);
+        TreeMaker make = workingCopy.getTreeMaker();
+        CompilationUnitTree compilationUnitTree = workingCopy.getCompilationUnit();
+        for (Tree typeDecl : compilationUnitTree.getTypeDecls()) {
+            if (Tree.Kind.CLASS == typeDecl.getKind()) {
+                ClassTree clazz = (ClassTree) typeDecl;
+                LoggerGenerationFactory.logDebugInfoOfWorkingCopy(clazz, workingCopy);
+                parseWorkingCopy(clazz, workingCopy, make);
             }
         }
     }
@@ -251,7 +263,7 @@ public class LoggerGenerationFactory {
 
     public static void logStatementTree(String source, StatementTree statementTree) {
         if (LOGGER.isLoggable(Level.FINEST)) {
-            if(statementTree == null) {
+            if (statementTree == null) {
                 LOGGER.finest("Kind of " + (source != null ? source : "Statement") + ": " + "NULL");
                 return;
             }
@@ -374,6 +386,137 @@ public class LoggerGenerationFactory {
                 default:
                     LOGGER.finest("Type Tree (" + variableTypeKind + "): " + type.toString());
             }
+        }
+    }
+
+    //Following code will walk down to SysOuts
+    public static void parseWorkingCopy(ClassTree clazz, WorkingCopy workingCopy, TreeMaker make) {
+        List<? extends Tree> members = clazz.getMembers();
+        for (Tree member : members) {
+            Kind memberKind = member.getKind();
+            if (memberKind.equals(Kind.METHOD)) {
+                MethodTree methodTree = (MethodTree) member;
+                BlockTree blockTree = methodTree.getBody();
+                parseBlockTree(blockTree, workingCopy, make);
+            } else if (memberKind.equals(Kind.VARIABLE)) {
+                VariableTree variableTree = (VariableTree) member;
+                parseVariableTree(variableTree, workingCopy, make);
+            } else if (memberKind.equals(Kind.BLOCK)) {
+                parseBlockTree((BlockTree) member, workingCopy, make);
+            } else {
+            }
+        }
+    }
+
+    public static void parseBlockTree(BlockTree blockTree, WorkingCopy workingCopy, TreeMaker make) {
+            List<? extends StatementTree> statements = blockTree.getStatements();
+            for (StatementTree statementTree : statements) {
+                Kind statementKind = statementTree.getKind();
+                parseStatementTree(null, statementTree, workingCopy, make);
+            }
+    }
+
+    public static void parseStatementTree(String source, StatementTree statementTree, WorkingCopy workingCopy, TreeMaker make) {
+        if (statementTree == null) {
+            return;
+        }
+        Kind statementKind = statementTree.getKind();
+        switch (statementKind) {
+            case IF:
+                IfTree ifTree = (IfTree) statementTree;
+                parseStatementTree("If - Then body", ifTree.getThenStatement(), workingCopy, make);
+                parseStatementTree("If - Else body", ifTree.getElseStatement(), workingCopy, make);
+                break;
+            case FOR_LOOP:
+                ForLoopTree forLoopTree = (ForLoopTree) statementTree;
+                parseStatementTree("For Loop body", forLoopTree.getStatement(), workingCopy, make);
+                break;
+            case ENHANCED_FOR_LOOP:
+                EnhancedForLoopTree enhancedForLoopTree = (EnhancedForLoopTree) statementTree;
+                parseStatementTree("Enhanced For Loop body", enhancedForLoopTree.getStatement(), workingCopy, make);
+                break;
+            case WHILE_LOOP:
+                WhileLoopTree whileTree = (WhileLoopTree) statementTree;
+                parseStatementTree("While Loop body", whileTree.getStatement(), workingCopy, make);
+                break;
+            case DO_WHILE_LOOP:
+                DoWhileLoopTree doWhileLoopTree = (DoWhileLoopTree) statementTree;
+                parseStatementTree("Do-While Loop body", doWhileLoopTree.getStatement(), workingCopy, make);
+                break;
+            case TRY:
+                TryTree tryTree = (TryTree) statementTree;
+                parseBlockTree(tryTree.getBlock(), workingCopy, make);
+                List<? extends CatchTree> catches = tryTree.getCatches();
+                for (CatchTree catchTree : catches) {
+                    parseBlockTree(catchTree.getBlock(), workingCopy, make);
+                }
+                break;
+            case SWITCH:
+                SwitchTree switchTree = (SwitchTree) statementTree;
+                List<? extends CaseTree> cases = switchTree.getCases();
+                for (CaseTree caseTree : cases) {
+                    ExpressionTree caseExpression = caseTree.getExpression();
+                    List<? extends StatementTree> caseStatements = caseTree.getStatements();
+                    for (StatementTree caseStatement : caseStatements) {
+                        parseStatementTree("Case " + caseExpression, caseStatement, workingCopy, make);
+                    }
+                }
+                break;
+            case BLOCK:
+                parseBlockTree((BlockTree) statementTree, workingCopy, make);
+                break;
+            case EXPRESSION_STATEMENT:
+                parseExpressionStatementTree((ExpressionStatementTree) statementTree, workingCopy, make);
+                break;
+            case VARIABLE:
+                parseVariableTree((VariableTree) statementTree, workingCopy, make);
+                break;
+            default:
+        }
+    }
+
+    public static void parseExpressionStatementTree(ExpressionStatementTree expressionStatementTree, WorkingCopy workingCopy, TreeMaker make) {
+        parseExpressionTree(expressionStatementTree.getExpression(), workingCopy, make);
+    }
+
+    public static void parseExpressionTree(ExpressionTree expressionTree, WorkingCopy workingCopy, TreeMaker make) {
+        Kind expressionKind = expressionTree.getKind();
+        switch (expressionKind) {
+            case METHOD_INVOCATION:
+                MethodInvocationTree methodInvocationTree = (MethodInvocationTree) expressionTree;
+                LOGGER.finest(":::::::::::::::::::::::::::::::::::::::::: " + methodInvocationTree.getMethodSelect().toString());
+                if (methodInvocationTree.getMethodSelect().toString().equals("System.out.println")) {
+                    LOGGER.finest("============================");
+                    MethodInvocationTree newLogMethodInvocationTree;
+                    newLogMethodInvocationTree = make.MethodInvocation(
+                            Collections.<ExpressionTree>emptyList(),
+                            make.MemberSelect(
+                            make.Identifier("LOGGER"), "finest"),
+                            methodInvocationTree.getArguments());
+                    workingCopy.rewrite(methodInvocationTree, newLogMethodInvocationTree);
+                }
+                break;
+            default:
+        }
+    }
+
+    public static void parseVariableTree(VariableTree variableTree, WorkingCopy workingCopy, TreeMaker make) {
+        Tree type = variableTree.getType();
+        Kind variableTypeKind = type.getKind();
+        switch (variableTypeKind) {
+            case IDENTIFIER:
+                break;
+            case MEMBER_SELECT:
+                MemberSelectTree memberSelectTree = (MemberSelectTree) type;
+                LOGGER.finest("Member Select Expression: " + memberSelectTree.getExpression().toString());
+                LOGGER.finest("Member Select Name: " + memberSelectTree.getIdentifier().toString());
+                break;
+            case ARRAY_TYPE:
+                break;
+            case PARAMETERIZED_TYPE:
+                break;
+            default:
+
         }
     }
 }
