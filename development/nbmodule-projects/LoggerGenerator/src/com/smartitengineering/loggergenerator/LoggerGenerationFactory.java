@@ -143,10 +143,14 @@ public class LoggerGenerationFactory {
                 + "hasConsoleHandler = true;"
                 + "}"
                 + "}"
-                + "if (!hasConsoleHandler) {").append(loggerName).append(
-                ".addHandler(new java.util.logging.ConsoleHandler());"
-                + "}"
+                + "if (!hasConsoleHandler) {").append("java.util.logging.ConsoleHandler consoleHandler = new java.util.logging.ConsoleHandler();")
+                .append(loggerName).append(
+                ".addHandler(consoleHandler);"
                 );
+        if (setLevel) {
+            content.append("consoleHandler.setLevel(").append(Level.class.getName()).append(".").append(level.getName()).append(");");
+        }
+        content.append("}");
         if (setLevel) {
             content.append(loggerName).append(".setLevel(").append(Level.class.getName()).append(".").append(level.getName()).append(");");
         }
@@ -167,9 +171,14 @@ public class LoggerGenerationFactory {
             + "}"
             );
         List<VariableTree> params = new ArrayList<VariableTree>(2);
-        params.add(make.Variable(make.Modifiers(new HashSet()), "level", make.Identifier(Level.class.getName()), null));
-        params.add(make.Variable(make.Modifiers(new HashSet()), "messages", make.Identifier("Object..."), null));
-        MethodTree logMethod = make.Method(make.Modifiers(new HashSet(modifiers)), "log", returnType, Collections.<TypeParameterTree>emptyList(), params, Collections.<ExpressionTree>emptyList(), content.toString(), null);
+        params.add(make.Variable(make.Modifiers(new HashSet()), "level", 
+                make.Identifier(Level.class.getName()), null));
+        params.add(make.Variable(make.Modifiers(new HashSet()), "messages", 
+                make.Identifier("Object..."), null));
+        MethodTree logMethod = make.Method(make.Modifiers(new HashSet(modifiers)), 
+                "log", returnType, Collections.<TypeParameterTree>emptyList(), 
+                params, 
+                Collections.<ExpressionTree>emptyList(), content.toString(), null);
         modifiedClazz = make.insertClassMember(modifiedClazz, position++, logMethod);
         workingCopy.rewrite(clazz, modifiedClazz);
         return hasLogger;
