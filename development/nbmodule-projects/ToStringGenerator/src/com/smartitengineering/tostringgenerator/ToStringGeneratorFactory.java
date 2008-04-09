@@ -31,6 +31,7 @@ import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.ModifiersTree;
 import com.sun.source.tree.ParameterizedTypeTree;
 import com.sun.source.tree.Tree;
+import com.sun.source.tree.Tree.Kind;
 import com.sun.source.tree.TypeParameterTree;
 import com.sun.source.tree.VariableTree;
 import java.io.IOException;
@@ -83,8 +84,7 @@ public class ToStringGeneratorFactory {
         for (Tree typeDecl : compilationUnitTree.getTypeDecls()) {
             if (Tree.Kind.CLASS == typeDecl.getKind()) {
                 ClassTree clazz = (ClassTree) typeDecl;
-                ClassTree modifiedClazz = makeNewToString(make, workingCopy, clazz, true, true);
-                workingCopy.rewrite(clazz, modifiedClazz);
+                addToStringToClass(make, workingCopy,clazz);
             }
         }
     }
@@ -129,6 +129,19 @@ public class ToStringGeneratorFactory {
         body.append("} else {");
         appendToBuilder(body, "toStringBuilder", "\"NULL\"");
         body.append("}");
+    }
+
+    protected static void addToStringToClass(TreeMaker make, WorkingCopy workingCopy, ClassTree clazz) {
+        ClassTree modifiedClazz = makeNewToString(make, workingCopy, clazz, true, true);
+        workingCopy.rewrite(clazz, modifiedClazz);
+        List<? extends Tree> members = clazz.getMembers();
+        for (Tree member : members) {
+            Kind memberKind = member.getKind();
+            if (memberKind.equals(Kind.CLASS)) {
+                addToStringToClass(make, workingCopy, (ClassTree)member);
+            } else {
+            }
+        }
     }
 
     protected static ClassTree removeOldToString(final ClassTree clazz, final TreeMaker make) {
