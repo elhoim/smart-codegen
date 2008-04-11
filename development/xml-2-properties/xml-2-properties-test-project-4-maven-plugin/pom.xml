@@ -1,0 +1,61 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+  <parent>
+    <artifactId>xml-2-properties</artifactId>
+    <groupId>com.smartitengineering</groupId>
+    <version>1.0</version>
+  </parent>
+  
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.smartitengineering</groupId>
+  <artifactId>xml-2-properties-test-project-4-maven-plugin</artifactId>
+  <packaging>jar</packaging>
+  <version>1.0</version>
+  
+  <name>xml-2-properties-test-project-4-maven-plugin</name>
+  <description>
+    A test project showing the use of the xml-2-properties-plugin-4-maven maven plugin
+  </description>
+  <url>@TODO: Google Code Url</url>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>com.smartitengineering</groupId>
+        <artifactId>xml-2-properties-plugin-4-maven</artifactId>
+        <version>1.0</version>
+        <executions>
+          <execution>
+            <id>gen-sources-xml</id>
+            <phase>process-sources</phase>
+            <configuration>
+              <inputFile>${basedir}/src/main/resources/input.xml</inputFile>
+              <outputDirectory>${basedir}/target/output/xml</outputDirectory>
+              <bundleName>MyBundle</bundleName>
+              <outputMode>xml</outputMode>
+            </configuration>
+            <goals>
+              <goal>xml2property</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>gen-sources-props</id>
+            <phase>process-sources</phase>
+            <configuration>
+              <inputFile>${basedir}/src/main/resources/input.xml</inputFile>
+              <outputDirectory>${basedir}/target/output/properties</outputDirectory>
+              <bundleName>MyBundle</bundleName>
+              <outputMode>properties</outputMode>
+            </configuration>
+            <goals>
+              <goal>xml2property</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>

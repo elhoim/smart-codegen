@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.smartitengineering</groupId>
+  <artifactId>xml-2-properties</artifactId>
+  <packaging>pom</packaging>
+  <version>1.0</version>
+  <name>xml-2-properties</name>
+  <description>
+	A project to maintain a single xml file for resource
+    bundles that will be used in your application.
+  </description>
+  <organization>
+  	<name>Smart It Engineering</name>
+  	<url>http://www.smart-it-engineering.com</url>
+  </organization>
+  <url>@TODO: Google Code Url</url>
+
+  <developers>
+    <developer>
+      <id>shams.mahmood</id>
+      <name>Shams Mahmood</name>
+      <email>shams.mahmood@gmail.com</email>
+      <roles>
+        <role>Developer</role>
+      </roles>
+      <timezone>+6</timezone>
+	  <url>http://shamsmi.blogspot.com</url>
+    </developer>
+  </developers>
+  
+  <licenses>
+    <license>
+      <name>GNU GENERAL PUBLIC LICENSE</name>
+      <comments>
+        See gpl-2.0.txt file for details
+      </comments>
+    </license>
+  </licenses>
+
+  <build>
+    <plugins>
+      <plugin>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <fork>true</fork>
+          <source>1.5</source>
+          <target>1.5</target>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+  
+  <modules>
+    <module>xml-2-properties-plugin-4-maven</module>
+    <module>xml-2-properties-test-project-4-maven-plugin</module>
+  </modules>
+
+</project>

@@ -1,0 +1,28 @@
+<project>
+  [...]
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>com.smartitengineering</groupId>
+        <artifactId>xml-2-properties-plugin-4-maven</artifactId>
+        <version>1.0</version>
+        <executions>
+          <execution>
+            <id>gen-sources</id>
+            <phase>process-sources</phase>
+            <configuration>
+              <inputFile>${basedir}/src/main/resources/input.xml</inputFile>
+              <outputDirectory>${basedir}/target/output-props</outputDirectory>
+              <bundleName>MyBundle</bundleName>
+              <outputMode>xml</outputMode>
+            </configuration>
+            <goals>
+              <goal>xml2property</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+  [...]
+</project>

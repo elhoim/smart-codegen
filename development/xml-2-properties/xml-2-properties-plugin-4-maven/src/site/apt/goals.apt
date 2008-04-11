@@ -1,0 +1,17 @@
+ ------
+ Xml2Properties Plugin 4 Maven
+ ------
+ Shams Mahmood
+ ------
+ 05 April 2008
+ ------
+
+Overview
+
+* Goals Overview
+
+  The Xml2Properties Plugin 4 Maven has only one goal.
+
+  * {{xml-to-properties:xml2property}}
+  Generates properties files from the specified input xml file.
+

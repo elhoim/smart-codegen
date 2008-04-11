@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<document outputName="xml-2-properties-plugin-4-maven">
+
+  <meta>
+    <title>Xml To Properties Plugin 4 Maven</title>
+    <author>Shams Mahmood</author>
+  </meta>
+
+  <toc name="Table of Contents">
+    <item name="Introduction" ref="index.apt"/>
+    <item name="Goals" ref="goals.apt"/>
+    <item name="Usage" ref="usage.apt"/>
+    <item name="FAQ" ref="faq.fml"/>
+  </toc>
+
+</document>

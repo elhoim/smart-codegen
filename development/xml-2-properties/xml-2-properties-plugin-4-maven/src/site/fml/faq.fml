@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8" ?>
+
+<faqs title="Frequently Asked Questions">
+
+  <part id="General">
+
+    <faq id="merge_props">
+      <question>Will I lose properties in my existing output file?</question>
+      <answer>
+        <p>
+          If a valid output properties file already exists, the xml-to-properties plugin will
+          merge properties into the existing output file overwriting previous values with
+          new values.
+        </p>
+      </answer>
+    </faq>
+
+    <faq id="multiple_bundles">
+      <question>How can I use the plugin to generate multiple resource bundles?</question>
+      <answer>
+        <p>
+          To generate multiple bundles you will need to create multiple &lt;execution&gt; blocks,
+          one for each resource bundle you want to generate.
+        </p>
+      </answer>
+    </faq>
+
+    <faq id="output_format">
+      <question>Can I choose the output format of my properties file?</question>
+      <answer>
+        <p>
+          You can configure the 'outputMode' property to one of 'XML' or 'PROPERTIES'
+          to determine the output format of your properties. If nothing is specified 
+          the default value of 'PROPERTIES' will be used.
+        </p>
+      </answer>
+    </faq>
+
+    <faq id="custom_xml_format">
+      <question>How can I support custom xml formats?</question>
+      <answer>
+        <p>
+          Support for custom xml formats will require you to change the source code.
+          You will only require to implement a single interface
+          (com.smartit.maven.plugin.xml2props.xml.parser.InputParser) which has a single method
+          and direct the plugin to use this implementation by modifying the components.xml file.
+          The com.smartit.maven.plugin.xml2props.utils.XmlXomUtil utility class can be
+          used to easily parse an xml file.
+        </p>
+      </answer>
+    </faq>
+
+  </part>
+
+</faqs>

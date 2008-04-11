@@ -1,0 +1,109 @@
+ ------
+ Usage
+ ------
+ Shams Mahmood
+ ------
+ 05 April 2008
+ ------
+
+Using the Xml2Properties Plugin 4 Maven
+
+  The Xml2Properties Plugin 4 Maven allows you generate localized properties files
+  for your project from a single xml file.
+
+* Running the Xml2Properties plugin automatically during a build
+
+  The Xml2Properties plugin can be put into a project's pom.xml so that it
+  gets executed everytime the project is built.  Below is a sample pom.xml for running
+  the Xml To Properties plugin in the <<<process-sources>>> phase everytime the project
+  is built:
+
++-----
+<project>
+  [...]
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>com.smartitengineering</groupId>
+        <artifactId>xml-2-properties-plugin-4-maven</artifactId>
+        <version>1.0</version>
+        <executions>
+          <execution>
+            <id>gen-sources</id>
+            <phase>process-sources</phase>
+            <configuration>
+              <inputFile>${basedir}/src/main/resources/input.xml</inputFile>
+              <outputDirectory>${basedir}/target/output-props</outputDirectory>
+              <bundleName>MyBundle</bundleName>
+              <outputMode>xml</outputMode>
+            </configuration>
+            <goals>
+              <goal>xml2property</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+  [...]
+</project>
++-----
+
+  where input.xml is a file like:
+
++-----
+<?xml version="1.0" encoding="UTF-8" ?>
+<entries>
+  <entry>
+    <key>title</key>
+    <value>Title</value>
+    <value lang="en" country="US" >Title-en-US</value>
+  </entry>
+  <entry>
+    <key value="article" />
+    <value lang="en" >Article-en</value>
+    <value lang="en" country="US" >Article-en-US</value>
+  </entry>
+</entries>
++-----
+
+  Notice how elements can have value as text nodes or as 'value' attributes.
+
+  At the end of the build you should have three xml properties files as follows:
+
+  MyBundle.xml
+
++-----
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">
+<properties>
+<comment>Auto-generated properties from maven-xml-to-properties plugin</comment>
+<entry key="title">Title</entry>
+</properties>
++-----
+
+  MyBundle_en.xml
+
++-----
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">
+<properties>
+<comment>Auto-generated properties from maven-xml-to-properties plugin</comment>
+<entry key="article">Article-en</entry>
+</properties>
++-----
+
+  MyBundle_en_US.xml
+  
++-----
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">
+<properties>
+<comment>Auto-generated properties from maven-xml-to-properties plugin</comment>
+<entry key="title">Title-en-US</entry>
+<entry key="article">Article-en-US</entry>
+</properties>
++-----
+
+  For more examples refer to the xml-2-properties-test-project-4-maven-plugin at svn
+  that come along with the xml-2-properties-plugin-4-maven.

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<entries>
+  <entry>
+    <key>title</key>
+    <value>Title</value>
+    <value lang="no">Tittel</value>
+    <value lang="bn" country="BD">টাইটেল </value>
+  </entry>
+  <entry>
+    <key value="article" />
+    <value lang="bn">আরটিকেল</value>
+    <value lang="bn" country="BD">আরটিকেল  বান্গলাদেশ</value>
+    <value lang="en" value="Article" />
+    <value lang="en" country="US">Article-US</value>
+    <value lang="no" value="Artikkel" />
+  </entry>
+  <entry>
+    <key value="name" />
+    <value >Name</value>
+    <value lang="en" country="US" >Name-en-US</value>
+    <value lang="no">Navn</value>
+  </entry>
+  <entry>
+    <key value="type" />
+    <value >Type</value>
+    <value country="US" >Type-US</value>
+    <value lang="bn">টাইপ </value>
+  </entry>
+</entries>

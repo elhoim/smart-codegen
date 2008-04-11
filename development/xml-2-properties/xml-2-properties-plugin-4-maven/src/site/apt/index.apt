@@ -1,0 +1,40 @@
+ ------
+ Xml2Properties Plugin 4 Maven
+ ------
+ Shams Mahmood
+ ------
+ 05 April 2008
+ ------
+
+Overview
+
+  This plugin allows you to maintain a single xml file for resource
+  bundles that will be used in your application. This has the
+  advantage of having to edit only a single file for localized
+  messages. It also provides the benefit of not having to write
+  escaped unicode values as in properties files. The plugin then
+  generates properties as .properties or .xml file as configured. It
+  can also be used to add property values to an already existing file.
+
+* Goals Overview
+
+  The Xml2Properties Plugin 4 Maven has only one goal.
+
+  * {{xml-to-properties:xml2property}}
+  Generates properties files from the specified input xml file.
+
+* Usage
+
+  Instructions on the basic usage of the Xml2Properties Plugin 4 Maven can be
+  found in the {{{./usage.html}Usage}} page.
+
+Obtaining
+
+  To download and build from source issue the following commands:
+
+------
+  > svn @TODO
+  > cd @TODO trunk/mojo/xxxx/yyyy-plugin
+  > mvn clean install
+------
+

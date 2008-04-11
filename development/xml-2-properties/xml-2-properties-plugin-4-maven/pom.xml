@@ -1,0 +1,111 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+  <parent>
+    <artifactId>xml-2-properties</artifactId>
+    <groupId>com.smartitengineering</groupId>
+    <version>1.0</version>
+  </parent>
+  
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.smartitengineering</groupId>
+  <artifactId>xml-2-properties-plugin-4-maven</artifactId>
+  <packaging>maven-plugin</packaging>
+  <version>1.0</version>
+  
+  <name>xml-2-properties-plugin-4-maven</name>
+  <description>
+    This plugin allows you to maintain a single xml file for resource
+    bundles that will be used in your application. This has the
+    advantage of having to edit only a single file for localized
+    messages. It also provides the benefit of not having to write
+    escaped unicode values as in properties files. The plugin then
+    generates properties as .properties or .xml file as configured. It
+    can also be used to add property values to an already existing file.
+  </description>
+  <url>@TODO: Google Code Url</url>
+
+  <reporting>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <source>1.5</source>
+          <target>1.5</target>
+          <minmemory>128m</minmemory>
+          <maxmemory>1024m</maxmemory>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-report-plugin</artifactId>
+        <configuration>
+          <showSuccess>true</showSuccess>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-javadoc-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-pmd-plugin</artifactId>
+        <configuration>
+          <showSuccess>true</showSuccess>
+          <targetDirectory>target/pmd/xml</targetDirectory>
+          <targetJdk>1.5</targetJdk>
+          <outputDirectory>target/pmd/html</outputDirectory>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jxr-plugin</artifactId>
+        <configuration>
+          <linkJavadoc>true</linkJavadoc>
+          <javadocDir>target/site/apidocs</javadocDir>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-checkstyle-plugin</artifactId>
+        <configuration>
+          <configLocation>src/main/config/checkstyle.xml</configLocation>
+          <propertyExpansion>projectname=eventmanager</propertyExpansion>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>taglist-maven-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </reporting>
+
+  <properties>
+    <maven-plugin-api-version>2.0</maven-plugin-api-version>
+    <xom-version>1.1</xom-version>
+    <junit-version>3.8.1</junit-version>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.apache.maven</groupId>
+      <artifactId>maven-plugin-api</artifactId>
+      <version>${maven-plugin-api-version}</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>xom</groupId>
+      <artifactId>xom</artifactId>
+      <version>${xom-version}</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>${junit-version}</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+</project>

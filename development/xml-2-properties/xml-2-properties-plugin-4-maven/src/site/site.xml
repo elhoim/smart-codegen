@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<project name="Xml2Properties plugin 4 Maven">
+
+  <body>
+
+    <links>
+      <item name="Mojo" href="http://mojo.codehaus.org"/>
+      <item name="Maven" href="http://maven.apache.org/"/>
+    </links>
+
+    <menu name="Overview">
+      <item name="Introduction" href="index.html"/>
+      <item name="Goals" href="goals.html"/>
+      <item name="Usage" href="usage.html"/>
+      <item name="FAQ" href="faq.html"/>
+    </menu>
+
+  </body>
+</project>
