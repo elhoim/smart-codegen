@@ -75,7 +75,9 @@ public class JavaSourceTreeParser {
       }
     }
     if (!hasConsoleHandler) {
-      LOGGER.addHandler(new ConsoleHandler());
+      ConsoleHandler handler = new ConsoleHandler();
+      handler.setLevel(Level.ALL);
+      LOGGER.addHandler(handler);
     }
   }
 
