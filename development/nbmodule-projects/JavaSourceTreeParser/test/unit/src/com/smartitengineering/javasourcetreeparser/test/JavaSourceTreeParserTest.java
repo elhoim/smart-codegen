@@ -79,7 +79,6 @@ public class JavaSourceTreeParserTest
 
   /** Called before every test case. */
   public void setUp() {
-    System.out.println("########  " + getName() + "  #######");
   }
 
   /** Called after every test case. */
@@ -95,19 +94,13 @@ public class JavaSourceTreeParserTest
                        "development/nbmodule-projects/JavaSourceTreeParser/test/unit/" +
                        "src/com/smartitengineering/javasourcetreeparser/test/resources/" +
                        "Main_1_1.java");
-      Logger.getLogger(JavaSourceTreeParserTest.class.getName()).
-              log(Level.INFO, testJavaFile.getAbsolutePath());
       /**
        * ----------------------------------------------------------------
        */
       FileObject fileObject = FileUtil.toFileObject(testJavaFile);
       JavaSource eSource =
               JavaSource.forFileObject(fileObject);
-      Logger.getLogger(JavaSourceTreeParserTest.class.getName()).
-              log(Level.INFO, (eSource == null ? "NULL!" : eSource.toString()));
-      if (eSource == null) {
-      }
-      else {
+      if (eSource != null) {
         CancellableTask<WorkingCopy> cancellableTask = new CancellableTask<WorkingCopy>() {
 
           public void cancel() {
@@ -144,5 +137,4 @@ public class JavaSourceTreeParserTest
     finally {
     }
   }
-
 }

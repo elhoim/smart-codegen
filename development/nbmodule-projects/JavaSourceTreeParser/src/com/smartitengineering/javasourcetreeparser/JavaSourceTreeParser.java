@@ -22,10 +22,14 @@
 package com.smartitengineering.javasourcetreeparser;
 
 import com.sun.source.tree.ArrayTypeTree;
+import com.sun.source.tree.AssignmentTree;
+import com.sun.source.tree.BinaryTree;
 import com.sun.source.tree.BlockTree;
+import com.sun.source.tree.BreakTree;
 import com.sun.source.tree.CaseTree;
 import com.sun.source.tree.CatchTree;
 import com.sun.source.tree.ClassTree;
+import com.sun.source.tree.CompoundAssignmentTree;
 import com.sun.source.tree.DoWhileLoopTree;
 import com.sun.source.tree.EnhancedForLoopTree;
 import com.sun.source.tree.ExpressionStatementTree;
@@ -34,11 +38,14 @@ import com.sun.source.tree.ForLoopTree;
 import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.IfTree;
 import com.sun.source.tree.ImportTree;
+import com.sun.source.tree.LiteralTree;
 import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.ParameterizedTypeTree;
+import com.sun.source.tree.ParenthesizedTree;
 import com.sun.source.tree.PrimitiveTypeTree;
+import com.sun.source.tree.ReturnTree;
 import com.sun.source.tree.StatementTree;
 import com.sun.source.tree.SwitchTree;
 import com.sun.source.tree.Tree;
@@ -49,6 +56,7 @@ import com.sun.source.tree.VariableTree;
 import com.sun.source.tree.WhileLoopTree;
 import java.util.List;
 import java.util.logging.ConsoleHandler;
+import java.util.logging.FileHandler;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -67,18 +75,20 @@ public class JavaSourceTreeParser {
   static {
     LOGGER = Logger.getLogger(JavaSourceTreeParser.class.getName());
     LOGGER.setLevel(Level.ALL);
-    Handler[] handlers = LOGGER.getHandlers();
-    boolean hasConsoleHandler = false;
-    for (Handler handler : handlers) {
-      if (handler instanceof ConsoleHandler) {
-        hasConsoleHandler = true;
-      }
+    try {
+      FileHandler fileHandler =
+              new FileHandler("/home/imyousuf/Desktop/Logger.log");
+      initHandler(fileHandler);
     }
-    if (!hasConsoleHandler) {
-      ConsoleHandler handler = new ConsoleHandler();
-      handler.setLevel(Level.ALL);
-      LOGGER.addHandler(handler);
+    catch (Exception ex) {
+      ex.printStackTrace();
     }
+  }
+
+  protected static void initHandler(Handler handler) throws SecurityException {
+    handler.setLevel(Level.ALL);
+    handler.setFormatter(new SimpleLagacyLogFormatter());
+    LOGGER.addHandler(handler);
   }
 
   public void parseWorkingCopy(final ClassTree clazz,
@@ -306,6 +316,7 @@ public class JavaSourceTreeParser {
 
   public void logClassTree(ClassTree clazz) {
     if (LOGGER.isLoggable(Level.FINEST)) {
+      LOGGER.finest("CLass Name: " + clazz.getSimpleName());
       List<? extends Tree> members = clazz.getMembers();
       List<? extends TypeParameterTree> types = clazz.getTypeParameters();
       for (TypeParameterTree paramType : types) {
@@ -375,6 +386,7 @@ public class JavaSourceTreeParser {
           LOGGER.finest("If block");
           IfTree ifTree = (IfTree) statementTree;
           LOGGER.finest("Condition: " + ifTree.getCondition());
+          logExpressionTree(ifTree.getCondition());
           logStatementTree("If - Then body", ifTree.getThenStatement());
           logStatementTree("If - Else body", ifTree.getElseStatement());
           break;
@@ -383,6 +395,7 @@ public class JavaSourceTreeParser {
           ForLoopTree forLoopTree = (ForLoopTree) statementTree;
           LOGGER.finest("Initializer: " + forLoopTree.getInitializer());
           LOGGER.finest("Condition: " + forLoopTree.getCondition());
+          logExpressionTree(forLoopTree.getCondition());
           LOGGER.finest("Update: " + forLoopTree.getUpdate());
           logStatementTree("For Loop body", forLoopTree.getStatement());
           break;
@@ -399,15 +412,17 @@ public class JavaSourceTreeParser {
           break;
         case WHILE_LOOP:
           LOGGER.finest("While Loop");
-          WhileLoopTree whileTree = (WhileLoopTree) statementTree;
-          LOGGER.finest("Condition: " + whileTree.getCondition());
-          logStatementTree("While Loop body", whileTree.getStatement());
+          WhileLoopTree whileLoopTree = (WhileLoopTree) statementTree;
+          LOGGER.finest("Condition: " + whileLoopTree.getCondition());
+          logExpressionTree(whileLoopTree.getCondition());
+          logStatementTree("While Loop body", whileLoopTree.getStatement());
           break;
         case DO_WHILE_LOOP:
           LOGGER.finest("Do-While Loop");
           DoWhileLoopTree doWhileLoopTree =
                   (DoWhileLoopTree) statementTree;
           LOGGER.finest("Condition: " + doWhileLoopTree.getCondition());
+          logExpressionTree(doWhileLoopTree.getCondition());
           logStatementTree("Do-While Loop body",
                            doWhileLoopTree.getStatement());
           break;
@@ -419,6 +434,7 @@ public class JavaSourceTreeParser {
           for (CatchTree catchTree : catches) {
             LOGGER.finest("Catch Block For: " +
                           catchTree.getParameter());
+            logVariableTree(catchTree.getParameter());
             logBlockTree(catchTree.getBlock());
           }
           break;
@@ -429,6 +445,12 @@ public class JavaSourceTreeParser {
           for (CaseTree caseTree : cases) {
             ExpressionTree caseExpression = caseTree.getExpression();
             LOGGER.finest("Case Expression: " + caseExpression);
+            if (caseExpression != null) {
+              logExpressionTree(caseExpression);
+            }
+            else {
+              LOGGER.finest("DEFAULT Case Expression");
+            }
             List<? extends StatementTree> caseStatements =
                     caseTree.getStatements();
             for (StatementTree caseStatement : caseStatements) {
@@ -445,6 +467,16 @@ public class JavaSourceTreeParser {
           break;
         case VARIABLE:
           logVariableTree((VariableTree) statementTree);
+          break;
+        case RETURN:
+          LOGGER.finest("Return statement!");
+          ReturnTree returnTree = (ReturnTree) statementTree;
+          logExpressionTree(returnTree.getExpression());
+          break;
+        case BREAK:
+          LOGGER.finest("Break statement!");
+          BreakTree breakTree = (BreakTree) statementTree;
+          LOGGER.finest("Break Label: " + breakTree.getLabel());
           break;
         default:
           LOGGER.finest("UNKNOWN STMT (" + statementTree.getKind().
@@ -467,17 +499,82 @@ public class JavaSourceTreeParser {
       Kind expressionKind = expressionTree.getKind();
       switch (expressionKind) {
         case METHOD_INVOCATION:
-          LOGGER.finest("Method Invocation!");
+          LOGGER.finest("EXPR: Method Invocation!");
           MethodInvocationTree methodInvocationTree =
                   (MethodInvocationTree) expressionTree;
           LOGGER.finest(methodInvocationTree.getMethodSelect().
                         getKind().
                         name() + ": " +
                         methodInvocationTree.getMethodSelect());
+          List<? extends ExpressionTree> arguments =
+                  methodInvocationTree.getArguments();
+          for (ExpressionTree argument : arguments) {
+            logExpressionTree(argument);
+          }
+          List<? extends Tree> types = methodInvocationTree.getTypeArguments();
+          for (Tree type : types) {
+            logVariableType(type);
+          }
           break;
+        case MEMBER_SELECT:
+          LOGGER.finest("EXPR: Member Select!");
+          MemberSelectTree memberSelectTree = (MemberSelectTree) expressionTree;
+          LOGGER.finest("Member Select ID: " + memberSelectTree.getIdentifier().
+                        toString());
+          logExpressionTree(memberSelectTree.getExpression());
+          break;
+        case IDENTIFIER:
+          logVariableType(expressionTree);
+          break;
+        case STRING_LITERAL:
+        case LONG_LITERAL:
+        case FLOAT_LITERAL:
+        case DOUBLE_LITERAL:
+        case INT_LITERAL:
+        case NULL_LITERAL:
+          LiteralTree literalTree = (LiteralTree) expressionTree;
+          LOGGER.finest("Literal: " + literalTree.getValue());
+          break;
+        case PLUS:
+        case MINUS:
+        case MULTIPLY:
+        case REMAINDER:
+        case DIVIDE:
+        case AND:
+        case OR:
+        case LESS_THAN:
+        case LESS_THAN_EQUAL:
+        case GREATER_THAN:
+        case GREATER_THAN_EQUAL:
+        case LEFT_SHIFT:
+        case RIGHT_SHIFT:
+        case UNSIGNED_RIGHT_SHIFT:
+          BinaryTree binaryTree = (BinaryTree) expressionTree;
+          LOGGER.finest("Binary Tree: " + expressionKind);
+          logExpressionTree(binaryTree.getLeftOperand());
+          logExpressionTree(binaryTree.getRightOperand());
+          break;
+        case PARENTHESIZED:
+          LOGGER.finest("Paranthesized Tree!");
+          ParenthesizedTree parenthesizedTree =
+                  (ParenthesizedTree) expressionTree;
+          logExpressionTree(parenthesizedTree.getExpression());
+          break;
+        case PLUS_ASSIGNMENT:
+        case MINUS_ASSIGNMENT:
+        case MULTIPLY_ASSIGNMENT:
+        case DIVIDE_ASSIGNMENT:
+        case REMAINDER_ASSIGNMENT:
+        case LEFT_SHIFT_ASSIGNMENT:
+        case RIGHT_SHIFT_ASSIGNMENT:
+        case AND_ASSIGNMENT:
+        case OR_ASSIGNMENT:
+        case UNSIGNED_RIGHT_SHIFT_ASSIGNMENT:
+          CompoundAssignmentTree compoundAssignmentTree = (CompoundAssignmentTree) expressionTree;
         default:
           LOGGER.finest("UNKNOWN EXPR (" + expressionKind.name() + "): " +
-                        expressionTree.toString());
+                        expressionTree.toString() + " " + expressionTree.getClass().
+                        getName());
       }
     }
   }
@@ -529,13 +626,14 @@ public class JavaSourceTreeParser {
           logVariableType(parameterizedTypeTree.getType());
           List<? extends Tree> paramTypeArgs =
                   parameterizedTypeTree.getTypeArguments();
-          for(Tree tree : paramTypeArgs) {
+          for (Tree tree : paramTypeArgs) {
             logVariableType(tree);
           }
           break;
         case PRIMITIVE_TYPE:
           PrimitiveTypeTree primitiveTypeTree = (PrimitiveTypeTree) type;
-          LOGGER.finest("Primitive Type Kind: " + primitiveTypeTree.getPrimitiveTypeKind().name());
+          LOGGER.finest("Primitive Type Kind: " + primitiveTypeTree.getPrimitiveTypeKind().
+                        name());
           break;
         default:
           LOGGER.finest("UNKNOWN TYPE (" + variableTypeKind + "): " +
