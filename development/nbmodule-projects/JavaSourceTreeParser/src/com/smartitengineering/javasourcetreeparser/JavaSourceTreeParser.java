@@ -107,193 +107,510 @@ public class JavaSourceTreeParser {
   public synchronized void parseWorkingCopy(final ClassTree clazz,
                                             final WorkingCopy workingCopy,
                                             final TreeMaker make) {
-    boolean hasStaticImport = false;
     List<? extends ImportTree> imports =
             workingCopy.getCompilationUnit().
             getImports();
-    for (ImportTree importTree : imports) {
-      if (importTree.isStatic()) {
-        MemberSelectTree memberSelectTree =
-                (MemberSelectTree) importTree.getQualifiedIdentifier();
-        if (memberSelectTree.toString().
-                equals("java.lang.System.out")) {
-          hasStaticImport = true;
-        }
+    List<Tree> parentTrees = new ArrayList<Tree>();
+    parseClassTree(clazz, workingCopy, make, parentTrees, imports);
+  }
+
+  public static void throwIllegalArgExceptionForNullParams(Object... params) {
+    if (params == null) {
+      return;
+    }
+    for (Object param : params) {
+      if (param == null) {
+        throw new IllegalArgumentException();
       }
     }
-    parseClassTree(clazz, workingCopy, make, null, hasStaticImport);
   }
 
   protected void parseClassTree(final ClassTree clazz,
                                 final WorkingCopy workingCopy,
                                 final TreeMaker make,
-                                final ClassTree parentClassTree,
-                                final boolean hasStaticImport) {
+                                final List<Tree> parentTrees,
+                                final List<? extends ImportTree> importTree) {
+    throwIllegalArgExceptionForNullParams(clazz, workingCopy, make, parentTrees,
+                                          importTree);
+    fireNodeTraversalListener(workingCopy, make, clazz, parentTrees,
+                              importTree);
+    parentTrees.add(clazz);
     List<? extends Tree> members = clazz.getMembers();
     for (Tree member : members) {
+      fireNodeTraversalListener(workingCopy, make, member, members, importTree);
+      parentTrees.add(member);
       Kind memberKind = member.getKind();
       if (memberKind.equals(Kind.METHOD)) {
         MethodTree methodTree = (MethodTree) member;
         BlockTree blockTree = methodTree.getBody();
-        parseBlockTree(blockTree, workingCopy, make,
-                       parentClassTree == null ? clazz : parentClassTree,
-                       hasStaticImport);
+        parseBlockTree(blockTree, workingCopy, make, parentTrees, importTree);
+        List<? extends VariableTree> params =
+                methodTree.getParameters();
+        for (VariableTree param : params) {
+          parseVariableTree(param, workingCopy, make, parentTrees, importTree);
+        }
+        Tree returnType = methodTree.getReturnType();
+        parseVariableType(returnType, workingCopy, make, parentTrees, importTree);
       }
       else if (memberKind.equals(Kind.VARIABLE)) {
         VariableTree variableTree = (VariableTree) member;
-        parseVariableTree(variableTree, workingCopy, make);
+        parseVariableTree(variableTree, workingCopy, make, parentTrees,
+                          importTree);
       }
       else if (memberKind.equals(Kind.BLOCK)) {
         parseBlockTree((BlockTree) member, workingCopy, make,
-                       parentClassTree == null ? clazz : parentClassTree,
-                       hasStaticImport);
+                       parentTrees, importTree);
       }
       else if (memberKind.equals(Kind.CLASS)) {
-        parseClassTree((ClassTree) member, workingCopy, make, clazz,
-                       hasStaticImport);
+        parseClassTree((ClassTree) member, workingCopy, make, parentTrees,
+                       importTree);
       }
       else {
       }
+      parentTrees.remove(member);
     }
+    parentTrees.remove(clazz);
   }
 
   protected void parseBlockTree(final BlockTree blockTree,
                                 final WorkingCopy workingCopy,
                                 final TreeMaker make,
-                                final ClassTree clazz,
-                                final boolean hasStaticImport) {
-    List<? extends StatementTree> statements = blockTree.getStatements();
-    for (StatementTree statementTree : statements) {
-      Kind statementKind = statementTree.getKind();
-      parseStatementTree(null, statementTree, workingCopy, make, clazz,
-                         hasStaticImport);
+                                final List<Tree> parents,
+                                final List<? extends ImportTree> importTrees) {
+    if (blockTree == null) {
+      return;
     }
+    throwIllegalArgExceptionForNullParams(workingCopy, make, parents,
+                                          importTrees);
+    fireNodeTraversalListener(workingCopy, make, blockTree, parents, importTrees);
+    parents.add(blockTree);
+    List<? extends StatementTree> statements = blockTree.getStatements();
+    if (statements != null) {
+      for (StatementTree statementTree : statements) {
+        parseStatementTree(statementTree, workingCopy, make, parents,
+                           importTrees);
+      }
+    }
+    parents.remove(blockTree);
   }
 
-  protected void parseStatementTree(final String source,
-                                    final StatementTree statementTree,
+  protected void parseStatementTree(final StatementTree statementTree,
                                     final WorkingCopy workingCopy,
                                     final TreeMaker make,
-                                    final ClassTree clazz,
-                                    final boolean hasStaticImport) {
+                                    final List<Tree> parents,
+                                    final List<? extends ImportTree> importTrees) {
     if (statementTree == null) {
       return;
     }
+    throwIllegalArgExceptionForNullParams(workingCopy, make, parents,
+                                          importTrees);
+    fireNodeTraversalListener(workingCopy, make, statementTree, parents,
+                              importTrees);
+    parents.add(statementTree);
     Kind statementKind = statementTree.getKind();
     switch (statementKind) {
       case IF:
         IfTree ifTree = (IfTree) statementTree;
-        parseStatementTree("If - Then body", ifTree.getThenStatement(),
-                           workingCopy, make, clazz, hasStaticImport);
-        parseStatementTree("If - Else body", ifTree.getElseStatement(),
-                           workingCopy, make, clazz, hasStaticImport);
+        parseExpressionTree(ifTree.getCondition(), workingCopy, make, parents,
+                            importTrees);
+        parseStatementTree(ifTree.getThenStatement(), workingCopy, make, parents,
+                           importTrees);
+        parseStatementTree(ifTree.getElseStatement(), workingCopy, make, parents,
+                           importTrees);
         break;
       case FOR_LOOP:
         ForLoopTree forLoopTree = (ForLoopTree) statementTree;
-        parseStatementTree("For Loop body", forLoopTree.getStatement(),
-                           workingCopy, make, clazz, hasStaticImport);
+        parseExpressionTree(forLoopTree.getCondition(), workingCopy, make,
+                            parents, importTrees);
+        parseStatementTree(forLoopTree.getStatement(), workingCopy, make,
+                           parents, importTrees);
+        List<? extends StatementTree> initializers =
+                forLoopTree.getInitializer();
+        if (initializers != null) {
+          for (StatementTree initializerStatment : initializers) {
+            parseStatementTree(initializerStatment, workingCopy, make, parents,
+                               importTrees);
+          }
+        }
+        List<? extends ExpressionStatementTree> updaters =
+                forLoopTree.getUpdate();
+        if (updaters != null) {
+          for (ExpressionStatementTree updateStatement : updaters) {
+            parseExpressionStatementTree(updateStatement, workingCopy, make,
+                                         parents, importTrees);
+          }
+        }
         break;
       case ENHANCED_FOR_LOOP:
         EnhancedForLoopTree enhancedForLoopTree =
                 (EnhancedForLoopTree) statementTree;
-        parseStatementTree("Enhanced For Loop body",
-                           enhancedForLoopTree.getStatement(),
-                           workingCopy, make,
-                           clazz, hasStaticImport);
+        parseExpressionTree(enhancedForLoopTree.getExpression(), workingCopy,
+                            make, parents, importTrees);
+        parseVariableTree(enhancedForLoopTree.getVariable(), workingCopy, make,
+                          parents, importTrees);
+        parseStatementTree(enhancedForLoopTree.getStatement(), workingCopy, make,
+                           parents, importTrees);
         break;
       case WHILE_LOOP:
-        WhileLoopTree whileTree = (WhileLoopTree) statementTree;
-        parseStatementTree("While Loop body", whileTree.getStatement(),
-                           workingCopy, make, clazz, hasStaticImport);
+        WhileLoopTree whileLoopTree = (WhileLoopTree) statementTree;
+        parseExpressionTree(whileLoopTree.getCondition(), workingCopy, make,
+                            parents, importTrees);
+        parseStatementTree(whileLoopTree.getStatement(), workingCopy, make,
+                           parents, importTrees);
         break;
       case DO_WHILE_LOOP:
         DoWhileLoopTree doWhileLoopTree =
                 (DoWhileLoopTree) statementTree;
-        parseStatementTree("Do-While Loop body",
-                           doWhileLoopTree.getStatement(), workingCopy,
-                           make,
-                           clazz, hasStaticImport);
+        parseExpressionTree(doWhileLoopTree.getCondition(), workingCopy, make,
+                            parents, importTrees);
+        parseStatementTree(doWhileLoopTree.getStatement(), workingCopy, make,
+                           parents, importTrees);
         break;
       case TRY:
         TryTree tryTree = (TryTree) statementTree;
-        parseBlockTree(tryTree.getBlock(), workingCopy, make, clazz,
-                       hasStaticImport);
+        parseBlockTree(tryTree.getBlock(), workingCopy, make, parents,
+                       importTrees);
         List<? extends CatchTree> catches = tryTree.getCatches();
-        for (CatchTree catchTree : catches) {
-          parseBlockTree(catchTree.getBlock(), workingCopy, make,
-                         clazz, hasStaticImport);
+        if (catches != null) {
+          for (CatchTree catchTree : catches) {
+            parseVariableTree(catchTree.getParameter(), workingCopy, make,
+                              parents,
+                              importTrees);
+            parseBlockTree(catchTree.getBlock(), workingCopy, make, parents,
+                           importTrees);
+          }
         }
         break;
       case SWITCH:
         SwitchTree switchTree = (SwitchTree) statementTree;
+        parseExpressionTree(switchTree.getExpression(), workingCopy, make,
+                            parents, importTrees);
         List<? extends CaseTree> cases = switchTree.getCases();
-        for (CaseTree caseTree : cases) {
-          ExpressionTree caseExpression = caseTree.getExpression();
-          List<? extends StatementTree> caseStatements =
-                  caseTree.getStatements();
-          for (StatementTree caseStatement : caseStatements) {
-            parseStatementTree("Case " + caseExpression,
-                               caseStatement, workingCopy, make,
-                               clazz,
-                               hasStaticImport);
+        if (cases != null) {
+          for (CaseTree caseTree : cases) {
+            ExpressionTree caseExpression = caseTree.getExpression();
+            if (caseExpression != null) {
+              parseExpressionTree(caseExpression, workingCopy, make, parents,
+                                  importTrees);
+            }
+            List<? extends StatementTree> caseStatements =
+                    caseTree.getStatements();
+            if (caseStatements != null) {
+              for (StatementTree caseStatement : caseStatements) {
+                parseStatementTree(caseStatement, workingCopy, make, parents,
+                                   importTrees);
+              }
+            }
           }
         }
         break;
       case BLOCK:
-        parseBlockTree((BlockTree) statementTree, workingCopy, make,
-                       clazz, hasStaticImport);
+        parseBlockTree((BlockTree) statementTree, workingCopy, make, parents,
+                       importTrees);
         break;
       case EXPRESSION_STATEMENT:
-        parseExpressionStatementTree(
-                (ExpressionStatementTree) statementTree, workingCopy,
-                make, clazz, hasStaticImport);
+        parseExpressionStatementTree((ExpressionStatementTree) statementTree,
+                                     workingCopy, make, parents, importTrees);
         break;
       case VARIABLE:
-        parseVariableTree((VariableTree) statementTree, workingCopy,
-                          make);
+        parseVariableTree((VariableTree) statementTree, workingCopy, make,
+                          parents, importTrees);
+        break;
+      case RETURN:
+        ReturnTree returnTree = (ReturnTree) statementTree;
+        ExpressionTree expressionTree = returnTree.getExpression();
+        if (expressionTree != null) {
+          parseExpressionTree(expressionTree, workingCopy, make, parents,
+                              importTrees);
+        }
+        break;
+      case BREAK:
+        break;
+      case THROW:
+        ThrowTree throwTree = (ThrowTree) statementTree;
+        parseExpressionTree(throwTree.getExpression(), workingCopy, make,
+                            parents, importTrees);
+        break;
+      case EMPTY_STATEMENT:
         break;
       default:
+        LOGGER.finest("UNKNOWN STMT (" + statementTree.getKind().
+                      name() + "): " + statementTree.toString());
     }
+    parents.remove(statementTree);
   }
 
-  protected void parseExpressionStatementTree(ExpressionStatementTree expressionStatementTree,
+  protected void parseExpressionStatementTree(final ExpressionStatementTree expressionStatementTree,
                                               final WorkingCopy workingCopy,
                                               final TreeMaker make,
-                                              final ClassTree clazz,
-                                              final boolean hasStaticImport) {
+                                              final List<Tree> parents,
+                                              final List<? extends ImportTree> importTrees) {
+    if (expressionStatementTree == null) {
+      return;
+    }
+    throwIllegalArgExceptionForNullParams(workingCopy, make, parents,
+                                          importTrees);
+    fireNodeTraversalListener(workingCopy, make, expressionStatementTree,
+                              parents, importTrees);
+    parents.add(expressionStatementTree);
     parseExpressionTree(expressionStatementTree.getExpression(), workingCopy,
-                        make, clazz, hasStaticImport);
+                        make, parents, importTrees);
+    parents.remove(expressionStatementTree);
   }
 
-  protected void parseExpressionTree(ExpressionTree expressionTree,
+  protected void parseExpressionTree(final ExpressionTree expressionTree,
                                      final WorkingCopy workingCopy,
                                      final TreeMaker make,
-                                     final ClassTree clazz,
-                                     final boolean hasStaticImport) {
+                                     final List<Tree> parents,
+                                     final List<? extends ImportTree> importTrees) {
+    if (expressionTree == null) {
+      return;
+    }
+    throwIllegalArgExceptionForNullParams(workingCopy, make, parents,
+                                          importTrees);
+    fireNodeTraversalListener(workingCopy, make, expressionTree, parents,
+                              importTrees);
+    parents.add(expressionTree);
     Kind expressionKind = expressionTree.getKind();
     switch (expressionKind) {
       case METHOD_INVOCATION:
+        MethodInvocationTree methodInvocationTree =
+                (MethodInvocationTree) expressionTree;
+        parseExpressionTrees(methodInvocationTree.getArguments(), workingCopy,
+                             make, parents, importTrees);
+        parseVariableTypes(methodInvocationTree.getTypeArguments(), workingCopy,
+                           make, parents, importTrees);
+        break;
+      case MEMBER_SELECT:
+        MemberSelectTree memberSelectTree = (MemberSelectTree) expressionTree;
+        parseExpressionTree(memberSelectTree.getExpression(), workingCopy, make,
+                            parents, importTrees);
+        break;
+      case IDENTIFIER:
+        // Below is commented as for identifier there is no further parsing.
+        // Thus firing event from here is sufficient. Uncomment the following
+        // if and only if IDENTIFIER can be decomposed into several other trees
+        //parseVariableType(expressionTree, workingCopy, make, parents, importTrees);
+        break;
+      case ASSIGNMENT:
+        AssignmentTree assignmentTree = (AssignmentTree) expressionTree;
+        parseExpressionTree(assignmentTree.getVariable(), workingCopy, make,
+                            parents, importTrees);
+        parseExpressionTree(assignmentTree.getExpression(), workingCopy, make,
+                            parents, importTrees);
+        break;
+      case STRING_LITERAL:
+      case LONG_LITERAL:
+      case FLOAT_LITERAL:
+      case DOUBLE_LITERAL:
+      case INT_LITERAL:
+      case NULL_LITERAL:
+      case BOOLEAN_LITERAL:
+        break;
+      case PLUS:
+      case MINUS:
+      case MULTIPLY:
+      case REMAINDER:
+      case DIVIDE:
+      case AND:
+      case OR:
+      case LESS_THAN:
+      case LESS_THAN_EQUAL:
+      case GREATER_THAN:
+      case GREATER_THAN_EQUAL:
+      case LEFT_SHIFT:
+      case RIGHT_SHIFT:
+      case NOT_EQUAL_TO:
+      case EQUAL_TO:
+      case UNSIGNED_RIGHT_SHIFT:
+      case BITWISE_COMPLEMENT:
+        BinaryTree binaryTree = (BinaryTree) expressionTree;
+        parseExpressionTree(binaryTree.getLeftOperand(), workingCopy, make,
+                            parents, importTrees);
+        parseExpressionTree(binaryTree.getRightOperand(), workingCopy, make,
+                            parents, importTrees);
+        break;
+      case PARENTHESIZED:
+        ParenthesizedTree parenthesizedTree =
+                (ParenthesizedTree) expressionTree;
+        parseExpressionTree(parenthesizedTree.getExpression(), workingCopy, make,
+                            parents, importTrees);
+        break;
+      case PLUS_ASSIGNMENT:
+      case MINUS_ASSIGNMENT:
+      case MULTIPLY_ASSIGNMENT:
+      case DIVIDE_ASSIGNMENT:
+      case REMAINDER_ASSIGNMENT:
+      case LEFT_SHIFT_ASSIGNMENT:
+      case RIGHT_SHIFT_ASSIGNMENT:
+      case AND_ASSIGNMENT:
+      case OR_ASSIGNMENT:
+      case UNSIGNED_RIGHT_SHIFT_ASSIGNMENT:
+        CompoundAssignmentTree compoundAssignmentTree =
+                (CompoundAssignmentTree) expressionTree;
+        parseExpressionTree(compoundAssignmentTree.getVariable(), workingCopy,
+                            make, parents, importTrees);
+        parseExpressionTree(compoundAssignmentTree.getExpression(), workingCopy,
+                            make, parents, importTrees);
+        break;
+      case PREFIX_DECREMENT:
+      case PREFIX_INCREMENT:
+      case POSTFIX_DECREMENT:
+      case POSTFIX_INCREMENT:
+        UnaryTree unaryTree = (UnaryTree) expressionTree;
+        parseExpressionTree(unaryTree.getExpression(), workingCopy, make,
+                            parents, importTrees);
+        break;
+      case NEW_ARRAY:
+        NewArrayTree newArrayTree = (NewArrayTree) expressionTree;
+        parseVariableType(newArrayTree.getType(), workingCopy, make, parents,
+                          importTrees);
+        parseExpressionTrees(newArrayTree.getDimensions(), workingCopy, make,
+                             parents, importTrees);
+        parseExpressionTrees(newArrayTree.getInitializers(), workingCopy, make,
+                             parents, importTrees);
+        break;
+      case NEW_CLASS:
+        NewClassTree newClassTree = (NewClassTree) expressionTree;
+        parseExpressionTree(newClassTree.getIdentifier(), workingCopy, make,
+                            parents, importTrees);
+        final ExpressionTree enclosingExpression =
+                newClassTree.getEnclosingExpression();
+        if (enclosingExpression != null) {
+          parseExpressionTree(enclosingExpression, workingCopy, make, parents,
+                              importTrees);
+        }
+        ClassTree classBody = newClassTree.getClassBody();
+        if (classBody != null) {
+          parseClassTree(classBody, workingCopy, make, parents, importTrees);
+        }
+        parseVariableTypes(newClassTree.getTypeArguments(), workingCopy, make,
+                           parents, importTrees);
+        parseExpressionTrees(newClassTree.getArguments(), workingCopy, make,
+                             parents, importTrees);
+        break;
+      case ARRAY_ACCESS:
+        ArrayAccessTree arrayAccessTree = (ArrayAccessTree) expressionTree;
+        parseExpressionTree(arrayAccessTree.getExpression(), workingCopy, make,
+                            parents, importTrees);
+        parseExpressionTree(arrayAccessTree.getIndex(), workingCopy, make,
+                            parents, importTrees);
+        break;
+      case TYPE_CAST:
+        TypeCastTree typeCastTree = (TypeCastTree) expressionTree;
+        parseVariableType(typeCastTree.getType(), workingCopy, make, parents,
+                          importTrees);
+        parseExpressionTree(typeCastTree.getExpression(), workingCopy, make,
+                            parents, importTrees);
         break;
       default:
+        LOGGER.finest("UNKNOWN EXPR (" + expressionKind.name() + "): " +
+                      expressionTree.toString() + " " + expressionTree.getClass().
+                      getName());
     }
+    parents.remove(expressionTree);
   }
 
-  protected void parseVariableTree(VariableTree variableTree,
+  protected void parseVariableTree(final VariableTree variableTree,
                                    final WorkingCopy workingCopy,
-                                   final TreeMaker make) {
+                                   final TreeMaker make,
+                                   final List<Tree> parents,
+                                   final List<? extends ImportTree> importTrees) {
+    if (variableTree == null) {
+      return;
+    }
+    throwIllegalArgExceptionForNullParams(workingCopy, make, parents,
+                                          importTrees);
+    fireNodeTraversalListener(workingCopy, make, variableTree, parents,
+                              importTrees);
+    parents.add(variableTree);
     Tree type = variableTree.getType();
+    parseVariableType(type, workingCopy, make, parents, importTrees);
+    ExpressionTree varExpression = variableTree.getInitializer();
+    if (varExpression != null) {
+      logExpressionTree(varExpression);
+    }
+    parents.remove(variableTree);
+  }
+
+  public void parseVariableType(Tree type,
+                                WorkingCopy workingCopy,
+                                TreeMaker maker,
+                                List<Tree> parents,
+                                List<? extends ImportTree> importTrees) {
+    if (type == null) {
+      return;
+    }
+    throwIllegalArgExceptionForNullParams(workingCopy, maker, parents,
+                                          importTrees);
+    fireNodeTraversalListener(workingCopy, maker, type, parents, importTrees);
+    parents.add(type);
     Kind variableTypeKind = type.getKind();
     switch (variableTypeKind) {
       case IDENTIFIER:
         break;
       case MEMBER_SELECT:
+        MemberSelectTree memberSelectTree =
+                (MemberSelectTree) type;
+        ExpressionTree memberExpressionTree = memberSelectTree.getExpression();
+        if (memberExpressionTree != null) {
+          parseExpressionTree(memberExpressionTree, workingCopy, maker,
+                              parents, importTrees);
+        }
         break;
       case ARRAY_TYPE:
+        ArrayTypeTree arrayTypeTree = (ArrayTypeTree) type;
+        parseVariableType(arrayTypeTree.getType(), workingCopy, maker, parents,
+                          importTrees);
         break;
       case PARAMETERIZED_TYPE:
+        ParameterizedTypeTree parameterizedTypeTree =
+                (ParameterizedTypeTree) type;
+        parseVariableType(parameterizedTypeTree.getType(), workingCopy, maker,
+                          parents, importTrees);
+        List<? extends Tree> paramTypeArgs =
+                parameterizedTypeTree.getTypeArguments();
+        for (Tree tree : paramTypeArgs) {
+          parseVariableType(tree, workingCopy, maker, parents, importTrees);
+        }
+        break;
+      case PRIMITIVE_TYPE:
         break;
       default:
+        LOGGER.finest("UNKNOWN TYPE (" + variableTypeKind + "): " +
+                      type.toString());
+    }
+    parents.remove(type);
+  }
 
+  public void parseVariableTypes(List<? extends Tree> types,
+                                 WorkingCopy workingCopy,
+                                 TreeMaker maker,
+                                 List<Tree> parents,
+                                 List<? extends ImportTree> importTrees) {
+    if (types == null) {
+      return;
+    }
+    throwIllegalArgExceptionForNullParams(workingCopy, maker, parents,
+                                          importTrees);
+    for (Tree type : types) {
+      parseVariableType(type, workingCopy, maker, parents, importTrees);
+    }
+  }
+
+  public void parseExpressionTrees(List<? extends ExpressionTree> expressions,
+                                   WorkingCopy workingCopy,
+                                   TreeMaker maker,
+                                   List<Tree> parents,
+                                   List<? extends ImportTree> importTrees) {
+    if (expressions == null) {
+      return;
+    }
+    throwIllegalArgExceptionForNullParams(workingCopy, maker, parents,
+                                          importTrees);
+    for (ExpressionTree initializerExpression : expressions) {
+      parseExpressionTree(initializerExpression, workingCopy, maker, parents,
+                          importTrees);
     }
   }
   /**
@@ -302,7 +619,7 @@ public class JavaSourceTreeParser {
    */
   private Map<Kind, List<NodeTraversalListener>> listeners;
 
-  public void addNodeTraversalListener(NodeTraversalListener listener) {
+  public synchronized void addNodeTraversalListener(NodeTraversalListener listener) {
     if (listener == null) {
       return;
     }
@@ -318,7 +635,7 @@ public class JavaSourceTreeParser {
     }
   }
 
-  public boolean removeNodeTraversalListener(NodeTraversalListener listener) {
+  public synchronized boolean removeNodeTraversalListener(NodeTraversalListener listener) {
     if (listener == null) {
       return false;
     }
@@ -338,8 +655,7 @@ public class JavaSourceTreeParser {
                                            TreeMaker treeMaker,
                                            Tree currentNode,
                                            List<? extends Tree> nodeStack,
-                                           List<Tree> parents,
-                                           List<ImportTree> imports) {
+                                           List<? extends ImportTree> imports) {
     if (currentNode == null) {
       return;
     }
@@ -351,7 +667,7 @@ public class JavaSourceTreeParser {
     }
     for (NodeTraversalListener listener : listenersForKind) {
       listener.notifyAboutNode(new NodeTraversalEvent(currentNode.getKind(),
-                                                      currentNode, parents,
+                                                      currentNode, nodeStack,
                                                       copy, treeMaker, imports));
     }
   }
