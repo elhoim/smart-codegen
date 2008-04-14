@@ -22,7 +22,6 @@ package com.smartitengineering.loggergenerator;
 
 import com.smartitengineering.javasourcetreeparser.JavaSourceTreeParser;
 import com.sun.source.tree.AnnotationTree;
-import com.sun.source.tree.ArrayTypeTree;
 import com.sun.source.tree.AssignmentTree;
 import com.sun.source.tree.BlockTree;
 import com.sun.source.tree.CaseTree;

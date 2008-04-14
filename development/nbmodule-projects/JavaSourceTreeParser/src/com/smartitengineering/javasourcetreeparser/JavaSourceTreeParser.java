@@ -37,6 +37,8 @@ import com.sun.source.tree.ImportTree;
 import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
+import com.sun.source.tree.ParameterizedTypeTree;
+import com.sun.source.tree.PrimitiveTypeTree;
 import com.sun.source.tree.StatementTree;
 import com.sun.source.tree.SwitchTree;
 import com.sun.source.tree.Tree;
@@ -443,8 +445,8 @@ public class JavaSourceTreeParser {
           logVariableTree((VariableTree) statementTree);
           break;
         default:
-          LOGGER.finest(statementTree.getKind().
-                        name() + ": " + statementTree.toString());
+          LOGGER.finest("UNKNOWN STMT (" + statementTree.getKind().
+                        name() + "): " + statementTree.toString());
       }
     }
   }
@@ -472,7 +474,7 @@ public class JavaSourceTreeParser {
                         methodInvocationTree.getMethodSelect());
           break;
         default:
-          LOGGER.finest(expressionKind.name() + ": " +
+          LOGGER.finest("UNKNOWN EXPR (" + expressionKind.name() + "): " +
                         expressionTree.toString());
       }
     }
@@ -483,6 +485,16 @@ public class JavaSourceTreeParser {
       LOGGER.finest("Variable Name: " + variableTree.getName().
                     toString());
       Tree type = variableTree.getType();
+      logVariableType(type);
+    }
+  }
+
+  public void logVariableType(Tree type) {
+    if (LOGGER.isLoggable(Level.FINEST)) {
+      if (type == null) {
+        LOGGER.finest("type is NULL!");
+        return;
+      }
       Kind variableTypeKind = type.getKind();
       switch (variableTypeKind) {
         case IDENTIFIER:
@@ -491,22 +503,40 @@ public class JavaSourceTreeParser {
                         toString());
           break;
         case MEMBER_SELECT:
-          MemberSelectTree memberSelectTree = (MemberSelectTree) type;
-          LOGGER.finest("Member Select Expression: " + memberSelectTree.getExpression().
+          MemberSelectTree memberSelectTree =
+                  (MemberSelectTree) type;
+          LOGGER.finest("Member Select Expression: " +
+                        memberSelectTree.getExpression().
                         toString());
-          LOGGER.finest("Member Select Name: " + memberSelectTree.getIdentifier().
+          LOGGER.finest("Member Select Name: " +
+                        memberSelectTree.getIdentifier().
                         toString());
+          logExpressionTree(memberSelectTree.getExpression());
           break;
         case ARRAY_TYPE:
           ArrayTypeTree arrayTypeTree = (ArrayTypeTree) type;
           LOGGER.finest("Array Type(" + arrayTypeTree.getType().
                         getKind() + "): " + arrayTypeTree.getType().
                         toString());
-          ;
+          logVariableType(arrayTypeTree.getType());
+          break;
         case PARAMETERIZED_TYPE:
-          ;
+          LOGGER.finest("Parameterized Type");
+          ParameterizedTypeTree parameterizedTypeTree =
+                  (ParameterizedTypeTree) type;
+          logVariableType(parameterizedTypeTree.getType());
+          List<? extends Tree> paramTypeArgs =
+                  parameterizedTypeTree.getTypeArguments();
+          for(Tree tree : paramTypeArgs) {
+            logVariableType(tree);
+          }
+          break;
+        case PRIMITIVE_TYPE:
+          PrimitiveTypeTree primitiveTypeTree = (PrimitiveTypeTree) type;
+          LOGGER.finest("Primitive Type Kind: " + primitiveTypeTree.getPrimitiveTypeKind().name());
+          break;
         default:
-          LOGGER.finest("Type Tree (" + variableTypeKind + "): " +
+          LOGGER.finest("UNKNOWN TYPE (" + variableTypeKind + "): " +
                         type.toString());
       }
     }
