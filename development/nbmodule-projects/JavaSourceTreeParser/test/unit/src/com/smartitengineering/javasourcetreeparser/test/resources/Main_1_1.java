@@ -31,6 +31,7 @@ class NonPubClass {
                     String... vArgs) {
     out.println(args);
     System.out.println(vArgs);
+    return ;
   }
 }
 
@@ -235,9 +236,11 @@ public class Main_1_1 {
 
   protected class InnerClass {
 
-    protected void test() {
+    protected int test() {
       out.println("test 1");
-      System.out.println("test 1");
+      System.out.println((String)"test 1");
+      ;
+      return 2 + 4;
     }
   }
 }

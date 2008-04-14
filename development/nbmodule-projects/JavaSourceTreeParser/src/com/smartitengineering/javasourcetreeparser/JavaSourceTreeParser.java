@@ -32,6 +32,7 @@ import com.sun.source.tree.CatchTree;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.CompoundAssignmentTree;
 import com.sun.source.tree.DoWhileLoopTree;
+import com.sun.source.tree.EmptyStatementTree;
 import com.sun.source.tree.EnhancedForLoopTree;
 import com.sun.source.tree.ExpressionStatementTree;
 import com.sun.source.tree.ExpressionTree;
@@ -55,11 +56,15 @@ import com.sun.source.tree.ThrowTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.Tree.Kind;
 import com.sun.source.tree.TryTree;
+import com.sun.source.tree.TypeCastTree;
 import com.sun.source.tree.TypeParameterTree;
 import com.sun.source.tree.UnaryTree;
 import com.sun.source.tree.VariableTree;
 import com.sun.source.tree.WhileLoopTree;
+import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.FileHandler;
 import java.util.logging.Handler;
 import java.util.logging.Level;
@@ -95,9 +100,13 @@ public class JavaSourceTreeParser {
     LOGGER.addHandler(handler);
   }
 
-  public void parseWorkingCopy(final ClassTree clazz,
-                               final WorkingCopy workingCopy,
-                               final TreeMaker make) {
+  public JavaSourceTreeParser() {
+    listeners = new EnumMap<Kind, List<NodeTraversalListener>>(Kind.class);
+  }
+
+  public synchronized void parseWorkingCopy(final ClassTree clazz,
+                                            final WorkingCopy workingCopy,
+                                            final TreeMaker make) {
     boolean hasStaticImport = false;
     List<? extends ImportTree> imports =
             workingCopy.getCompilationUnit().
@@ -115,11 +124,11 @@ public class JavaSourceTreeParser {
     parseClassTree(clazz, workingCopy, make, null, hasStaticImport);
   }
 
-  public void parseClassTree(final ClassTree clazz,
-                             final WorkingCopy workingCopy,
-                             final TreeMaker make,
-                             final ClassTree parentClassTree,
-                             final boolean hasStaticImport) {
+  protected void parseClassTree(final ClassTree clazz,
+                                final WorkingCopy workingCopy,
+                                final TreeMaker make,
+                                final ClassTree parentClassTree,
+                                final boolean hasStaticImport) {
     List<? extends Tree> members = clazz.getMembers();
     for (Tree member : members) {
       Kind memberKind = member.getKind();
@@ -148,11 +157,11 @@ public class JavaSourceTreeParser {
     }
   }
 
-  public void parseBlockTree(final BlockTree blockTree,
-                             final WorkingCopy workingCopy,
-                             final TreeMaker make,
-                             final ClassTree clazz,
-                             final boolean hasStaticImport) {
+  protected void parseBlockTree(final BlockTree blockTree,
+                                final WorkingCopy workingCopy,
+                                final TreeMaker make,
+                                final ClassTree clazz,
+                                final boolean hasStaticImport) {
     List<? extends StatementTree> statements = blockTree.getStatements();
     for (StatementTree statementTree : statements) {
       Kind statementKind = statementTree.getKind();
@@ -161,12 +170,12 @@ public class JavaSourceTreeParser {
     }
   }
 
-  public void parseStatementTree(final String source,
-                                 final StatementTree statementTree,
-                                 final WorkingCopy workingCopy,
-                                 final TreeMaker make,
-                                 final ClassTree clazz,
-                                 final boolean hasStaticImport) {
+  protected void parseStatementTree(final String source,
+                                    final StatementTree statementTree,
+                                    final WorkingCopy workingCopy,
+                                    final TreeMaker make,
+                                    final ClassTree clazz,
+                                    final boolean hasStaticImport) {
     if (statementTree == null) {
       return;
     }
@@ -247,20 +256,20 @@ public class JavaSourceTreeParser {
     }
   }
 
-  public void parseExpressionStatementTree(ExpressionStatementTree expressionStatementTree,
-                                           final WorkingCopy workingCopy,
-                                           final TreeMaker make,
-                                           final ClassTree clazz,
-                                           final boolean hasStaticImport) {
+  protected void parseExpressionStatementTree(ExpressionStatementTree expressionStatementTree,
+                                              final WorkingCopy workingCopy,
+                                              final TreeMaker make,
+                                              final ClassTree clazz,
+                                              final boolean hasStaticImport) {
     parseExpressionTree(expressionStatementTree.getExpression(), workingCopy,
                         make, clazz, hasStaticImport);
   }
 
-  public void parseExpressionTree(ExpressionTree expressionTree,
-                                  final WorkingCopy workingCopy,
-                                  final TreeMaker make,
-                                  final ClassTree clazz,
-                                  final boolean hasStaticImport) {
+  protected void parseExpressionTree(ExpressionTree expressionTree,
+                                     final WorkingCopy workingCopy,
+                                     final TreeMaker make,
+                                     final ClassTree clazz,
+                                     final boolean hasStaticImport) {
     Kind expressionKind = expressionTree.getKind();
     switch (expressionKind) {
       case METHOD_INVOCATION:
@@ -269,9 +278,9 @@ public class JavaSourceTreeParser {
     }
   }
 
-  public void parseVariableTree(VariableTree variableTree,
-                                final WorkingCopy workingCopy,
-                                final TreeMaker make) {
+  protected void parseVariableTree(VariableTree variableTree,
+                                   final WorkingCopy workingCopy,
+                                   final TreeMaker make) {
     Tree type = variableTree.getType();
     Kind variableTypeKind = type.getKind();
     switch (variableTypeKind) {
@@ -287,7 +296,79 @@ public class JavaSourceTreeParser {
 
     }
   }
+  /**
+   * Code for implementing Listener
+   * START
+   */
+  private Map<Kind, List<NodeTraversalListener>> listeners;
 
+  public void addNodeTraversalListener(NodeTraversalListener listener) {
+    if (listener == null) {
+      return;
+    }
+    Kind treeKind = listener.getTreeKind();
+    treeKind = (treeKind == null ? Kind.OTHER : treeKind);
+    List<NodeTraversalListener> listenersForKind = listeners.get(treeKind);
+    if (listenersForKind == null) {
+      listenersForKind = new ArrayList<NodeTraversalListener>();
+      listeners.put(treeKind, listenersForKind);
+    }
+    if (!listenersForKind.contains(listener)) {
+      listenersForKind.add(listener);
+    }
+  }
+
+  public boolean removeNodeTraversalListener(NodeTraversalListener listener) {
+    if (listener == null) {
+      return false;
+    }
+    Kind treeKind = listener.getTreeKind();
+    treeKind = (treeKind == null ? Kind.OTHER : treeKind);
+    List<NodeTraversalListener> listenersForKind = listeners.get(treeKind);
+    if (listenersForKind == null) {
+      return false;
+    }
+    if (listenersForKind.contains(listener)) {
+      return listenersForKind.remove(listener);
+    }
+    return false;
+  }
+
+  protected void fireNodeTraversalListener(WorkingCopy copy,
+                                           TreeMaker treeMaker,
+                                           Tree currentNode,
+                                           List<? extends Tree> nodeStack,
+                                           List<Tree> parents,
+                                           List<ImportTree> imports) {
+    if (currentNode == null) {
+      return;
+    }
+    Kind treeKind = currentNode.getKind();
+    treeKind = (treeKind == null ? Kind.OTHER : treeKind);
+    List<NodeTraversalListener> listenersForKind = listeners.get(treeKind);
+    if (listenersForKind == null) {
+      return;
+    }
+    for (NodeTraversalListener listener : listenersForKind) {
+      listener.notifyAboutNode(new NodeTraversalEvent(currentNode.getKind(),
+                                                      currentNode, parents,
+                                                      copy, treeMaker, imports));
+    }
+  }
+
+  /**
+   * Code for implementing Listener
+   * END
+   */
+  /**
+   * Code for logging the tree
+   * START
+   */
+  /**
+   * 
+   * @param clazz
+   * @param workingCopy
+   */
   public void logDebugInfoOfWorkingCopy(ClassTree clazz,
                                         WorkingCopy workingCopy) {
     if (LOGGER.isLoggable(Level.FINEST)) {
@@ -475,7 +556,10 @@ public class JavaSourceTreeParser {
         case RETURN:
           LOGGER.finest("Return statement!");
           ReturnTree returnTree = (ReturnTree) statementTree;
-          logExpressionTree(returnTree.getExpression());
+          ExpressionTree expressionTree = returnTree.getExpression();
+          if (expressionTree != null) {
+            logExpressionTree(expressionTree);
+          }
           break;
         case BREAK:
           LOGGER.finest("Break statement!");
@@ -486,6 +570,11 @@ public class JavaSourceTreeParser {
           LOGGER.finest("Throw statement!");
           ThrowTree throwTree = (ThrowTree) statementTree;
           logExpressionTree(throwTree.getExpression());
+          break;
+        case EMPTY_STATEMENT:
+          EmptyStatementTree emptyStatementTree =
+                  (EmptyStatementTree) statementTree;
+          LOGGER.finest("Empty statement: " + emptyStatementTree);
           break;
         default:
           LOGGER.finest("UNKNOWN STMT (" + statementTree.getKind().
@@ -540,6 +629,7 @@ public class JavaSourceTreeParser {
         case DOUBLE_LITERAL:
         case INT_LITERAL:
         case NULL_LITERAL:
+        case BOOLEAN_LITERAL:
           LiteralTree literalTree = (LiteralTree) expressionTree;
           LOGGER.finest("Literal: " + literalTree.getValue());
           break;
@@ -639,6 +729,14 @@ public class JavaSourceTreeParser {
           LOGGER.finest("Index: ");
           logExpressionTree(arrayAccessTree.getIndex());
           break;
+        case TYPE_CAST:
+          LOGGER.finest("Type casting!");
+          TypeCastTree typeCastTree = (TypeCastTree) expressionTree;
+          LOGGER.finest("Type: ");
+          logVariableType(typeCastTree.getType());
+          LOGGER.finest("Expression: ");
+          logExpressionTree(typeCastTree.getExpression());
+          break;
         default:
           LOGGER.finest("UNKNOWN EXPR (" + expressionKind.name() + "): " +
                         expressionTree.toString() + " " + expressionTree.getClass().
@@ -648,7 +746,7 @@ public class JavaSourceTreeParser {
   }
 
   public void logVariableTypes(List<? extends Tree> types) {
-    if(types == null) {
+    if (types == null) {
       LOGGER.finest("No Types!");
       return;
     }
@@ -658,7 +756,7 @@ public class JavaSourceTreeParser {
   }
 
   public void logExpressionTrees(List<? extends ExpressionTree> expressions) {
-    if(expressions == null) {
+    if (expressions == null) {
       LOGGER.finest("No Expressions!");
       return;
     }
@@ -737,4 +835,8 @@ public class JavaSourceTreeParser {
       }
     }
   }
+  /**
+   * Code for logging the tree
+   * END
+   */
 }
