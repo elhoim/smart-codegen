@@ -21,6 +21,7 @@
  */
 package com.smartitengineering.javasourcetreeparser;
 
+import com.sun.source.tree.ArrayAccessTree;
 import com.sun.source.tree.ArrayTypeTree;
 import com.sun.source.tree.AssignmentTree;
 import com.sun.source.tree.BinaryTree;
@@ -42,20 +43,23 @@ import com.sun.source.tree.LiteralTree;
 import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
+import com.sun.source.tree.NewArrayTree;
+import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.ParameterizedTypeTree;
 import com.sun.source.tree.ParenthesizedTree;
 import com.sun.source.tree.PrimitiveTypeTree;
 import com.sun.source.tree.ReturnTree;
 import com.sun.source.tree.StatementTree;
 import com.sun.source.tree.SwitchTree;
+import com.sun.source.tree.ThrowTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.Tree.Kind;
 import com.sun.source.tree.TryTree;
 import com.sun.source.tree.TypeParameterTree;
+import com.sun.source.tree.UnaryTree;
 import com.sun.source.tree.VariableTree;
 import com.sun.source.tree.WhileLoopTree;
 import java.util.List;
-import java.util.logging.ConsoleHandler;
 import java.util.logging.FileHandler;
 import java.util.logging.Handler;
 import java.util.logging.Level;
@@ -478,6 +482,11 @@ public class JavaSourceTreeParser {
           BreakTree breakTree = (BreakTree) statementTree;
           LOGGER.finest("Break Label: " + breakTree.getLabel());
           break;
+        case THROW:
+          LOGGER.finest("Throw statement!");
+          ThrowTree throwTree = (ThrowTree) statementTree;
+          logExpressionTree(throwTree.getExpression());
+          break;
         default:
           LOGGER.finest("UNKNOWN STMT (" + statementTree.getKind().
                         name() + "): " + statementTree.toString());
@@ -506,15 +515,8 @@ public class JavaSourceTreeParser {
                         getKind().
                         name() + ": " +
                         methodInvocationTree.getMethodSelect());
-          List<? extends ExpressionTree> arguments =
-                  methodInvocationTree.getArguments();
-          for (ExpressionTree argument : arguments) {
-            logExpressionTree(argument);
-          }
-          List<? extends Tree> types = methodInvocationTree.getTypeArguments();
-          for (Tree type : types) {
-            logVariableType(type);
-          }
+          logExpressionTrees(methodInvocationTree.getArguments());
+          logVariableTypes(methodInvocationTree.getTypeArguments());
           break;
         case MEMBER_SELECT:
           LOGGER.finest("EXPR: Member Select!");
@@ -525,6 +527,12 @@ public class JavaSourceTreeParser {
           break;
         case IDENTIFIER:
           logVariableType(expressionTree);
+          break;
+        case ASSIGNMENT:
+          LOGGER.finest("Assignment!");
+          AssignmentTree assignmentTree = (AssignmentTree) expressionTree;
+          logExpressionTree(assignmentTree.getVariable());
+          logExpressionTree(assignmentTree.getExpression());
           break;
         case STRING_LITERAL:
         case LONG_LITERAL:
@@ -548,7 +556,10 @@ public class JavaSourceTreeParser {
         case GREATER_THAN_EQUAL:
         case LEFT_SHIFT:
         case RIGHT_SHIFT:
+        case NOT_EQUAL_TO:
+        case EQUAL_TO:
         case UNSIGNED_RIGHT_SHIFT:
+        case BITWISE_COMPLEMENT:
           BinaryTree binaryTree = (BinaryTree) expressionTree;
           LOGGER.finest("Binary Tree: " + expressionKind);
           logExpressionTree(binaryTree.getLeftOperand());
@@ -570,12 +581,89 @@ public class JavaSourceTreeParser {
         case AND_ASSIGNMENT:
         case OR_ASSIGNMENT:
         case UNSIGNED_RIGHT_SHIFT_ASSIGNMENT:
-          CompoundAssignmentTree compoundAssignmentTree = (CompoundAssignmentTree) expressionTree;
+          LOGGER.finest("Compound Assignment " + expressionKind);
+          CompoundAssignmentTree compoundAssignmentTree =
+                  (CompoundAssignmentTree) expressionTree;
+          logExpressionTree(compoundAssignmentTree.getVariable());
+          logExpressionTree(compoundAssignmentTree.getExpression());
+          break;
+        case PREFIX_DECREMENT:
+        case PREFIX_INCREMENT:
+        case POSTFIX_DECREMENT:
+        case POSTFIX_INCREMENT:
+          LOGGER.finest("Unary Operation " + expressionKind);
+          UnaryTree unaryTree = (UnaryTree) expressionTree;
+          logExpressionTree(unaryTree.getExpression());
+          break;
+        case NEW_ARRAY:
+          LOGGER.finest("Array Initialization!");
+          NewArrayTree newArrayTree = (NewArrayTree) expressionTree;
+          logVariableType(newArrayTree.getType());
+          LOGGER.finest("Dimensions:");
+          logExpressionTrees(newArrayTree.getDimensions());
+          LOGGER.finest("Initializers:");
+          logExpressionTrees(newArrayTree.getInitializers());
+          break;
+        case NEW_CLASS:
+          LOGGER.finest("Class Initialization!");
+          NewClassTree newClassTree = (NewClassTree) expressionTree;
+          LOGGER.finest("Identifier:");
+          logExpressionTree(newClassTree.getIdentifier());
+          final ExpressionTree enclosingExpression =
+                  newClassTree.getEnclosingExpression();
+          if (enclosingExpression != null) {
+            LOGGER.finest("Enclosing Expression:");
+            logExpressionTree(enclosingExpression);
+          }
+          else {
+            LOGGER.finest("Enclosing Expression:" + enclosingExpression);
+          }
+          ClassTree classBody = newClassTree.getClassBody();
+          if (classBody != null) {
+            LOGGER.finest("Class body:");
+            logClassTree(classBody);
+          }
+          else {
+            LOGGER.finest("Class body: " + classBody);
+          }
+          LOGGER.finest("Type (generic) args:");
+          logVariableTypes(newClassTree.getTypeArguments());
+          LOGGER.finest("Arguments:");
+          logExpressionTrees(newClassTree.getArguments());
+          break;
+        case ARRAY_ACCESS:
+          LOGGER.finest("Accessing Array!");
+          ArrayAccessTree arrayAccessTree = (ArrayAccessTree) expressionTree;
+          LOGGER.finest("Expression: ");
+          logExpressionTree(arrayAccessTree.getExpression());
+          LOGGER.finest("Index: ");
+          logExpressionTree(arrayAccessTree.getIndex());
+          break;
         default:
           LOGGER.finest("UNKNOWN EXPR (" + expressionKind.name() + "): " +
                         expressionTree.toString() + " " + expressionTree.getClass().
                         getName());
       }
+    }
+  }
+
+  public void logVariableTypes(List<? extends Tree> types) {
+    if(types == null) {
+      LOGGER.finest("No Types!");
+      return;
+    }
+    for (Tree type : types) {
+      logVariableType(type);
+    }
+  }
+
+  public void logExpressionTrees(List<? extends ExpressionTree> expressions) {
+    if(expressions == null) {
+      LOGGER.finest("No Expressions!");
+      return;
+    }
+    for (ExpressionTree initializerExpression : expressions) {
+      logExpressionTree(initializerExpression);
     }
   }
 
@@ -585,6 +673,14 @@ public class JavaSourceTreeParser {
                     toString());
       Tree type = variableTree.getType();
       logVariableType(type);
+      ExpressionTree varExpression = variableTree.getInitializer();
+      if (varExpression != null) {
+        LOGGER.finest("Var Expression:");
+        logExpressionTree(varExpression);
+      }
+      else {
+        LOGGER.finest("Var Expression:" + varExpression);
+      }
     }
   }
 

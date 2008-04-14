@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Set;
 import java.io.*;
 import javax.swing.JButton;
+import javax.swing.JFrame;
 import static java.lang.System.out;
 
 /**
@@ -110,6 +111,7 @@ public class Main_1_1 {
       }
     };
     JButton button = new JButton();
+    JFrame frame = new JFrame("Test");
     button.addActionListener(firstActionListener);
     button.addActionListener(new ActionListener() {
 
@@ -126,6 +128,14 @@ public class Main_1_1 {
     do {
       System.out.println("Do-While");
     } while (main.test-- > 0);
+    NonPubClass nonPubClass = new NonPubClass() {
+
+      @Override
+      protected void test() {
+        super.test();
+      }
+      
+    };
   }
 
   public String toString() {
