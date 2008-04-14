@@ -65,7 +65,6 @@ public class LoggerGenerationFactory {
 
   static {
     LOGGER = Logger.getLogger(LoggerGenerationFactory.class.getName());
-    LOGGER.setLevel(Level.ALL);
     Handler[] handlers = LOGGER.getHandlers();
     boolean hasConsoleHandler = false;
     for (Handler handler : handlers) {

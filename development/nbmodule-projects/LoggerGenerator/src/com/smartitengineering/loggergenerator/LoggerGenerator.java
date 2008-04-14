@@ -48,7 +48,6 @@ public final class LoggerGenerator
     
 
     static {
-        LOGGER.setLevel(Level.ALL);
         Handler[] handlers = LOGGER.getHandlers();
         boolean hasConsoleHandler = false;
         for (Handler handler : handlers) {

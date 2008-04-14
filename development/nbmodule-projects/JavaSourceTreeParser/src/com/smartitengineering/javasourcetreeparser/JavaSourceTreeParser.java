@@ -65,7 +65,7 @@ import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
-import java.util.logging.FileHandler;
+import java.util.logging.ConsoleHandler;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -83,21 +83,16 @@ public class JavaSourceTreeParser {
 
   static {
     LOGGER = Logger.getLogger(JavaSourceTreeParser.class.getName());
-    LOGGER.setLevel(Level.ALL);
-    try {
-      FileHandler fileHandler =
-              new FileHandler("/home/imyousuf/Desktop/Logger.log");
-      initHandler(fileHandler);
+    Handler[] handlers = LOGGER.getHandlers();
+    boolean hasConsoleHandler = false;
+    for (Handler handler : handlers) {
+      if (handler instanceof ConsoleHandler) {
+        hasConsoleHandler = true;
+      }
     }
-    catch (Exception ex) {
-      ex.printStackTrace();
+    if (!hasConsoleHandler) {
+      LOGGER.addHandler(new ConsoleHandler());
     }
-  }
-
-  protected static void initHandler(Handler handler) throws SecurityException {
-    handler.setLevel(Level.ALL);
-    handler.setFormatter(new SimpleLagacyLogFormatter());
-    LOGGER.addHandler(handler);
   }
 
   public JavaSourceTreeParser() {
