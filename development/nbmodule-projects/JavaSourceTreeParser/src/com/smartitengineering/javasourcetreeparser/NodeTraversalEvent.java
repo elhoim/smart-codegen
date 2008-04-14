@@ -77,8 +77,7 @@ public class NodeTraversalEvent<E extends Kind> {
   }
 
   public List<Tree> getParentList() {
-    ArrayList<Tree> clonedAllParents = new ArrayList<Tree>(allParents.size());
-    Collections.<Tree>copy(clonedAllParents, allParents);
+    ArrayList<Tree> clonedAllParents = new ArrayList<Tree>(allParents);
     return clonedAllParents;
   }
 
