@@ -25,7 +25,7 @@ package com.smartitengineering.javasourcetreeparser;
  *
  * @author imyousuf
  */
-public interface InitializationListener {
+public interface StateListener {
   
   public boolean isInitialized();
   
