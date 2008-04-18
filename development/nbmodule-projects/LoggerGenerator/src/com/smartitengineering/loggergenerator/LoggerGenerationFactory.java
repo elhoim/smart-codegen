@@ -20,9 +20,11 @@
  */
 package com.smartitengineering.loggergenerator;
 
+import com.smartitengineering.javasourcetreeparser.InitializationListener;
 import com.smartitengineering.javasourcetreeparser.JavaSourceTreeParser;
 import com.smartitengineering.javasourcetreeparser.NodeTraversalEvent;
 import com.smartitengineering.javasourcetreeparser.NodeTraversalListener;
+import com.smartitengineering.javasourcetreeparser.ParsingUtils;
 import com.sun.source.tree.AnnotationTree;
 import com.sun.source.tree.AssignmentTree;
 import com.sun.source.tree.BlockTree;
@@ -42,6 +44,8 @@ import com.sun.source.tree.VariableTree;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.logging.ConsoleHandler;
@@ -81,17 +85,41 @@ public class LoggerGenerationFactory {
                                              final TreeMaker make,
                                              final ClassTree clazz,
                                              final WorkingCopy workingCopy,
-                                             final List<? extends ImportTree> imports) {
+                                             final List<? extends ImportTree> imports,
+                                             InitializationListener listener) {
     boolean hasStaticImport = false;
-    for (ImportTree importTree : imports) {
-      if (importTree.isStatic()) {
-        MemberSelectTree memberSelectTree =
-                (MemberSelectTree) importTree.getQualifiedIdentifier();
-        if (memberSelectTree.toString().
-                equals("java.lang.System.out")) {
-          hasStaticImport = true;
-        }
+    if (listener != null) {
+      if (listener.isInitialized()) {
+        hasStaticImport =
+                ((Boolean) listener.getValue("hasStaticImport")).booleanValue();
       }
+      else {
+        for (ImportTree importTree : imports) {
+          if (importTree.isStatic()) {
+            MemberSelectTree memberSelectTree =
+                    (MemberSelectTree) importTree.getQualifiedIdentifier();
+            if (memberSelectTree.toString().
+                    equals("java.lang.System.out")) {
+              hasStaticImport = true;
+            }
+          }
+        }
+        listener.setValue("hasStaticImport", Boolean.valueOf(hasStaticImport));
+        listener.setInitialized();
+      }
+      if (listener.getValue("addLoggerClassReturnValueFor" +
+                            clazz.getSimpleName()) == null) {
+        Object[] objects = addLoggerToClass(false, clazz, workingCopy, make,
+                                            workingCopy.getCompilationUnit(),
+                                            true,
+                                            Level.FINEST);
+        listener.setValue("addLoggerClassReturnValueFor" + clazz.getSimpleName(),
+                          objects);
+        listener.setInitialized();
+      }
+    }
+    else {
+      throw new IllegalArgumentException();
     }
     Kind expressionKind = expressionTree.getKind();
     switch (expressionKind) {
@@ -124,15 +152,6 @@ public class LoggerGenerationFactory {
     }
   }
 
-  private final static void log(Level level,
-                                Object... messages) {
-    if (LOGGER.isLoggable(level)) {
-      for (Object message : messages) {
-        LOGGER.log(level, message != null ? message.toString() : "NULL");
-      }
-    }
-  }
-
   public static void addLogger(WorkingCopy workingCopy,
                                boolean ignoreExisting,
                                boolean setLevel,
@@ -144,8 +163,6 @@ public class LoggerGenerationFactory {
     for (Tree typeDecl : compilationUnitTree.getTypeDecls()) {
       if (Tree.Kind.CLASS == typeDecl.getKind()) {
         ClassTree clazz = (ClassTree) typeDecl;
-        JavaSourceTreeParser treeParser = new JavaSourceTreeParser();
-        treeParser.logDebugInfoOfWorkingCopy(clazz, workingCopy);
         addLoggerToClass(ignoreExisting, clazz, workingCopy, make,
                          compilationUnitTree, setLevel, level);
       }
@@ -210,6 +227,13 @@ public class LoggerGenerationFactory {
                                              staticInitializer);
     }
     /**
+     * Fetch and sort the methods of the class
+     */
+    Comparator<MethodTree> methodComparator =
+            ParsingUtils.getMethodTreeComparator();
+    List<MethodTree> memberMethods = getMemberMethodTrees(clazz);
+    Collections.sort(memberMethods, methodComparator);
+    /**
      * Adds a logger initializer
      * TODO check whether method with same signature already exists or not
      */
@@ -253,10 +277,13 @@ public class LoggerGenerationFactory {
                                                       Collections.<VariableTree>emptyList(),
                                                       Collections.<ExpressionTree>emptyList(),
                                                       content.toString(), null);
-    modifiedClazz = make.insertClassMember(
-            modifiedClazz == null ? clazz : modifiedClazz,
-            position++,
-            initLoggerHandlersMethod);
+    if (Collections.binarySearch(memberMethods, initLoggerHandlersMethod,
+                                 methodComparator) < 0) {
+      modifiedClazz = make.insertClassMember(
+              modifiedClazz == null ? clazz : modifiedClazz,
+              position++,
+              initLoggerHandlersMethod);
+    }
     /**
      * Adds a logger for all levels
      * TODO check whether method with same signature already exists or not
@@ -269,7 +296,9 @@ public class LoggerGenerationFactory {
                    "}" + "}" + "}");
     List<VariableTree> params = new ArrayList<VariableTree>(2);
     params.add(make.Variable(make.Modifiers(new HashSet()), "level",
-                             make.Identifier(Level.class.getName()), null));
+                             ParsingUtils.getMemberSelectTreeForClassName(make,
+                                                                          Level.class),
+                             null));
     params.add(make.Variable(make.Modifiers(new HashSet()), "messages",
                              make.Identifier("Object..."), null));
     MethodTree logMethod = make.Method(make.Modifiers(new HashSet(modifiers)),
@@ -278,10 +307,26 @@ public class LoggerGenerationFactory {
                                        params,
                                        Collections.<ExpressionTree>emptyList(),
                                        content.toString(), null);
-    modifiedClazz = make.insertClassMember(modifiedClazz, position++,
-                                           logMethod);
+    if (Collections.binarySearch(memberMethods, logMethod, methodComparator) < 0) {
+      modifiedClazz = make.insertClassMember(modifiedClazz == null ? clazz : modifiedClazz, position++,
+                                             logMethod);
+    }
+    if (modifiedClazz == null) {
+      modifiedClazz = clazz;
+    }
     workingCopy.rewrite(clazz, modifiedClazz);
     return new Object[]{loggerName, modifiedClazz};
+  }
+
+  public static List<MethodTree> getMemberMethodTrees(ClassTree clazz) {
+    ArrayList<MethodTree> methodTrees = new ArrayList<MethodTree>();
+    List<? extends Tree> members = clazz.getMembers();
+    for (Tree member : members) {
+      if (member.getKind() == Kind.METHOD) {
+        methodTrees.add((MethodTree) member);
+      }
+    }
+    return methodTrees;
   }
 
   public static void convertSysOutToLog(final WorkingCopy workingCopy,
@@ -291,11 +336,11 @@ public class LoggerGenerationFactory {
     injectCodeWithListener(workingCopy, ignoreExisting, setLevel, level,
                            new MethodInvocationNodeTraversalListenerImpl());
   }
-  
+
   public static void addLogs(final WorkingCopy workingCopy,
-                                        final boolean ignoreExisting,
-                                        final boolean setLevel,
-                                        final Level level) throws IOException {
+                             final boolean ignoreExisting,
+                             final boolean setLevel,
+                             final Level level) throws IOException {
     injectCodeWithListener(workingCopy, ignoreExisting, setLevel, level,
                            new MethodNodeTraversalListenerImpl());
   }
@@ -316,8 +361,6 @@ public class LoggerGenerationFactory {
         JavaSourceTreeParser treeParser = new JavaSourceTreeParser();
         treeParser.addNodeTraversalListener(listener);
         treeParser.logDebugInfoOfWorkingCopy(clazz, workingCopy);
-        addLoggerToClass(false, clazz, workingCopy, make,
-                         compilationUnitTree, true, Level.FINEST);
         treeParser.parseWorkingCopy(clazz, workingCopy, make);
       }
     }
@@ -383,81 +426,94 @@ public class LoggerGenerationFactory {
     return loggerName;
   }
 
-  private static class MethodInvocationNodeTraversalListenerImpl
-          implements NodeTraversalListener {
-
-    public MethodInvocationNodeTraversalListenerImpl() {
-    }
-
-    public void notifyAboutNode(NodeTraversalEvent event) {
-      List<Tree> nodeStack = event.getParentList();
-      convertToLogFromSysOut((ExpressionTree) event.getCurrentNode(),
-                             event.getTreeMaker(),
-                             (ClassTree) nodeStack.get(0),
-                             event.getWorkingCopy(),
-                             event.getImports());
-    }
-
-    public Kind getTreeKind() {
-      return Kind.METHOD_INVOCATION;
-    }
-  }
-
   public static void addLogToMethodBlock(ClassTree clazzTree,
                                          MethodTree method,
                                          WorkingCopy workingCopy,
-                                         TreeMaker make) {
-    Object[] objects = addLoggerToClass(false, clazzTree, workingCopy, make,
-                                        workingCopy.getCompilationUnit(), true,
-                                        Level.FINEST);
-    String loggerName = (String) objects[0];
-    /**
-     * Adds a logger for all levels
-     * TODO check whether method with same signature already exists or not
-     */
-    StringBuilder logMethodContent =
-            new StringBuilder("{" + "if (").append(loggerName).
-            append(".isLoggable(level)) { StringBuilder message ").
-            append("= new StringBuilder(\"Entering Method \")").
-            append(".append(methodName).append(\" (\");").
-            append("for(Object param : parameters) {").
-            append("message.append(param != null ? param.toString() : \"NULL\").append(\", \");" +
-                   "}").
-            append("if(parameters != null && parameters.length > 0)").
-            append(
-            "message.delete(message.length() - 2, message.length());").
-            append(
-            "message.append(\")\")").
-            append(loggerName).
-            append(".log(level, message.toString());").
-            append("}" + "}");
-    logMethodContent.delete(logMethodContent.length() - 2,
-                            logMethodContent.length());
-    List<VariableTree> generatedMethodParams = new ArrayList<VariableTree>(3);
-    generatedMethodParams.add(make.Variable(make.Modifiers(new HashSet()),
-                                            "level",
-                                            make.Identifier(Level.class.getName()),
-                                            null));
-    generatedMethodParams.add(make.Variable(make.Modifiers(new HashSet()),
-                                            "methodName",
-                                            make.Identifier("String"), null));
-    generatedMethodParams.add(make.Variable(make.Modifiers(new HashSet()),
-                                            "parameters",
-                                            make.Identifier("Object..."), null));
-    ArrayList<Modifier> modifiers = new ArrayList();
-    Collections.addAll(modifiers, Modifier.FINAL, Modifier.PRIVATE,
-                       Modifier.STATIC);
-    ExpressionTree returnType = make.Identifier("void");
-    MethodTree logMethod = make.Method(make.Modifiers(new HashSet(modifiers)),
-                                       "logMethod", returnType,
-                                       Collections.<TypeParameterTree>emptyList(),
-                                       generatedMethodParams,
-                                       Collections.<ExpressionTree>emptyList(),
-                                       logMethodContent.toString(), null);
-    ClassTree modifiedClazz = (ClassTree) objects[1];
-    modifiedClazz = make.insertClassMember(modifiedClazz, 0,
-                                           logMethod);
-    workingCopy.rewrite(clazzTree, modifiedClazz);
+                                         TreeMaker make,
+                                         InitializationListener listener) {
+    Object[] objects;
+    if (listener != null) {
+      if (listener.getValue("addLoggerClassReturnValueFor" +
+                            clazzTree.getSimpleName()) != null) {
+        objects = (Object[]) listener.getValue("addLoggerClassReturnValueFor" +
+                                               clazzTree.getSimpleName());
+      }
+      else {
+        objects = addLoggerToClass(false, clazzTree, workingCopy, make,
+                                   workingCopy.getCompilationUnit(), true,
+                                   Level.FINEST);
+        listener.setValue("addLoggerClassReturnValueFor" +
+                          clazzTree.getSimpleName(), objects);
+        listener.setInitialized();
+      }
+      if (listener.getValue("logMethodFor" + clazzTree.getSimpleName()) == null) {
+        String loggerName = (String) objects[0];
+        /**
+         * Adds a logger for all levels
+         * TODO check whether method with same signature already exists or not
+         */
+        StringBuilder logMethodContent =
+                new StringBuilder("{" + "if (").append(loggerName).
+                append(".isLoggable(level)) { StringBuilder message ").
+                append("= new StringBuilder(\"Entering Method \")").
+                append(".append(methodName).append(\" (\");").
+                append("for(Object param : parameters) {").
+                append("message.append(param != null ? param.toString() : \"NULL\").append(\", \");" +
+                       "}").
+                append("if(parameters != null && parameters.length > 0)").
+                append(
+                "message.delete(message.length() - 2, message.length());").
+                append(
+                "message.append(\")\")").
+                append(loggerName).
+                append(".log(level, message.toString());").
+                append("}" + "}");
+        logMethodContent.delete(logMethodContent.length() - 2,
+                                logMethodContent.length());
+        List<VariableTree> generatedMethodParams =
+                new ArrayList<VariableTree>(3);
+        generatedMethodParams.add(make.Variable(make.Modifiers(new HashSet()),
+                                                "level",
+                                                ParsingUtils.getMemberSelectTreeForClassName(make,
+                                                                                             Level.class),
+                                                null));
+        generatedMethodParams.add(make.Variable(make.Modifiers(new HashSet()),
+                                                "methodName",
+                                                make.Identifier("String"), null));
+        generatedMethodParams.add(make.Variable(make.Modifiers(new HashSet()),
+                                                "parameters",
+                                                make.Identifier("Object..."),
+                                                null));
+        ArrayList<Modifier> modifiers = new ArrayList();
+        Collections.addAll(modifiers, Modifier.FINAL, Modifier.PRIVATE,
+                           Modifier.STATIC);
+        ExpressionTree returnType = make.Identifier("void");
+        MethodTree logMethod = make.Method(make.Modifiers(new HashSet(modifiers)),
+                                           "logMethod", returnType,
+                                           Collections.<TypeParameterTree>emptyList(),
+                                           generatedMethodParams,
+                                           Collections.<ExpressionTree>emptyList(),
+                                           logMethodContent.toString(), null);
+        ClassTree modifiedClazz = (ClassTree) objects[1];
+        /**
+         * Fetch and sort the methods of the class
+         */
+        Comparator<MethodTree> methodComparator =
+                ParsingUtils.getMethodTreeComparator();
+        List<MethodTree> memberMethods = getMemberMethodTrees(modifiedClazz);
+        Collections.sort(memberMethods, methodComparator);
+        if (Collections.binarySearch(memberMethods, logMethod,
+                                     ParsingUtils.getMethodTreeComparator()) < 0) {
+          modifiedClazz = make.insertClassMember(modifiedClazz, 0,
+                                                 logMethod);
+        }
+        workingCopy.rewrite(clazzTree, modifiedClazz);
+        listener.setValue("logMethodFor" + clazzTree.getSimpleName(), Boolean.TRUE);
+      }
+    }
+    else {
+      throw new IllegalArgumentException();
+    }
     BlockTree originalMethodBlock = method.getBody();
     List<? extends VariableTree> params = method.getParameters();
     List<ExpressionTree> arguments =
@@ -482,8 +538,56 @@ public class LoggerGenerationFactory {
     workingCopy.rewrite(originalMethodBlock, newMethodBlockTree);
   }
 
+  private static class MethodInvocationNodeTraversalListenerImpl
+          implements NodeTraversalListener, InitializationListener {
+
+    private boolean initialized = false;
+    private HashMap<String, Object> initMap = new HashMap<String, Object>();
+
+    public void notifyAboutNode(NodeTraversalEvent event) {
+      List<Tree> nodeStack = event.getParentList();
+      convertToLogFromSysOut((ExpressionTree) event.getCurrentNode(),
+                             event.getTreeMaker(),
+                             (ClassTree) nodeStack.get(0),
+                             event.getWorkingCopy(),
+                             event.getImports(), this);
+    }
+
+    public Kind getTreeKind() {
+      return Kind.METHOD_INVOCATION;
+    }
+
+    public boolean isInitialized() {
+      return initialized;
+    }
+
+    public void setInitialized() {
+      setInitializationStatus(true);
+    }
+
+    public void unsetInitialized() {
+      setInitializationStatus(false);
+    }
+
+    public void setInitializationStatus(boolean initialized) {
+      this.initialized = initialized;
+    }
+
+    public Object getValue(String key) {
+      return initMap.get(key);
+    }
+
+    public void setValue(String key,
+                         Object value) {
+      initMap.put(key, value);
+    }
+  }
+
   private static class MethodNodeTraversalListenerImpl
-          implements NodeTraversalListener {
+          implements NodeTraversalListener, InitializationListener {
+
+    private boolean initialized = false;
+    private HashMap<String, Object> initMap = new HashMap<String, Object>();
 
     public void notifyAboutNode(NodeTraversalEvent event) {
       List<Tree> trees = event.getParentList();
@@ -494,11 +598,36 @@ public class LoggerGenerationFactory {
       addLogToMethodBlock((ClassTree) event.getParentList().
                           get(0),
                           (MethodTree) event.getCurrentNode(),
-                          event.getWorkingCopy(), event.getTreeMaker());
+                          event.getWorkingCopy(), event.getTreeMaker(), this);
     }
 
     public Kind getTreeKind() {
       return Kind.METHOD;
+    }
+
+    public boolean isInitialized() {
+      return initialized;
+    }
+
+    public void setInitialized() {
+      setInitializationStatus(true);
+    }
+
+    public void unsetInitialized() {
+      setInitializationStatus(false);
+    }
+
+    public void setInitializationStatus(boolean initialized) {
+      this.initialized = initialized;
+    }
+
+    public Object getValue(String key) {
+      return initMap.get(key);
+    }
+
+    public void setValue(String key,
+                         Object value) {
+      initMap.put(key, value);
     }
   }
 }
