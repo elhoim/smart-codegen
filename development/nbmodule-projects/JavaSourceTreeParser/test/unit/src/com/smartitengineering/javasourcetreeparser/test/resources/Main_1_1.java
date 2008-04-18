@@ -27,7 +27,7 @@ class NonPubClass {
     System.out.println("test 1");
   }
 
-  private void test(String args,
+  public void test(String args,
                     String... vArgs) {
     out.println(args);
     System.out.println(vArgs);
@@ -108,6 +108,7 @@ public class Main_1_1 {
     ActionListener firstActionListener = new ActionListener() {
 
       public void actionPerformed(ActionEvent e) {
+        System.out.println("Not Supported yet!");
         throw new UnsupportedOperationException("Not supported yet.");
       }
     };
@@ -117,6 +118,7 @@ public class Main_1_1 {
     button.addActionListener(new ActionListener() {
 
                        public void actionPerformed(ActionEvent e) {
+                         System.out.println("Not Supported yet!");
                          throw new UnsupportedOperationException("Not supported yet.");
                        }
                      });
@@ -137,6 +139,7 @@ public class Main_1_1 {
       }
       
     };
+    nonPubClass.test(staticVar, "1", "2", "3", "4");
   }
 
   public String toString() {

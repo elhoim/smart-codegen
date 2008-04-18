@@ -132,7 +132,7 @@ public class JavaSourceTreeParser {
     parentTrees.add(clazz);
     List<? extends Tree> members = clazz.getMembers();
     for (Tree member : members) {
-      fireNodeTraversalListener(workingCopy, make, member, members, importTree);
+      fireNodeTraversalListener(workingCopy, make, member, parentTrees, importTree);
       parentTrees.add(member);
       Kind memberKind = member.getKind();
       if (memberKind.equals(Kind.METHOD)) {

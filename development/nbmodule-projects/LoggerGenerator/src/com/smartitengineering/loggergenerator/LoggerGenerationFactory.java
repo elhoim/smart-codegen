@@ -152,13 +152,13 @@ public class LoggerGenerationFactory {
     }
   }
 
-  protected static boolean addLoggerToClass(final boolean ignoreExisting,
-                                            final ClassTree clazz,
-                                            final WorkingCopy workingCopy,
-                                            final TreeMaker make,
-                                            final CompilationUnitTree compilationUnitTree,
-                                            final boolean setLevel,
-                                            final Level level) {
+  protected static Object[] addLoggerToClass(final boolean ignoreExisting,
+                                             final ClassTree clazz,
+                                             final WorkingCopy workingCopy,
+                                             final TreeMaker make,
+                                             final CompilationUnitTree compilationUnitTree,
+                                             final boolean setLevel,
+                                             final Level level) {
     boolean hasLogger = false;
     String loggerName = null;
     ClassTree modifiedClazz = null;
@@ -281,13 +281,31 @@ public class LoggerGenerationFactory {
     modifiedClazz = make.insertClassMember(modifiedClazz, position++,
                                            logMethod);
     workingCopy.rewrite(clazz, modifiedClazz);
-    return hasLogger;
+    return new Object[]{loggerName, modifiedClazz};
   }
 
   public static void convertSysOutToLog(final WorkingCopy workingCopy,
                                         final boolean ignoreExisting,
                                         final boolean setLevel,
                                         final Level level) throws IOException {
+    injectCodeWithListener(workingCopy, ignoreExisting, setLevel, level,
+                           new MethodInvocationNodeTraversalListenerImpl());
+  }
+  
+  public static void addLogs(final WorkingCopy workingCopy,
+                                        final boolean ignoreExisting,
+                                        final boolean setLevel,
+                                        final Level level) throws IOException {
+    injectCodeWithListener(workingCopy, ignoreExisting, setLevel, level,
+                           new MethodNodeTraversalListenerImpl());
+  }
+
+  public static void injectCodeWithListener(final WorkingCopy workingCopy,
+                                            final boolean ignoreExisting,
+                                            final boolean setLevel,
+                                            final Level level,
+                                            final NodeTraversalListener listener)
+          throws IOException {
     workingCopy.toPhase(Phase.RESOLVED);
     TreeMaker make = workingCopy.getTreeMaker();
     CompilationUnitTree compilationUnitTree =
@@ -296,7 +314,7 @@ public class LoggerGenerationFactory {
       if (Tree.Kind.CLASS == typeDecl.getKind()) {
         ClassTree clazz = (ClassTree) typeDecl;
         JavaSourceTreeParser treeParser = new JavaSourceTreeParser();
-        treeParser.addNodeTraversalListener(new NodeTraversalListenerImpl(workingCopy));
+        treeParser.addNodeTraversalListener(listener);
         treeParser.logDebugInfoOfWorkingCopy(clazz, workingCopy);
         addLoggerToClass(false, clazz, workingCopy, make,
                          compilationUnitTree, true, Level.FINEST);
@@ -365,23 +383,122 @@ public class LoggerGenerationFactory {
     return loggerName;
   }
 
-  private static class NodeTraversalListenerImpl
+  private static class MethodInvocationNodeTraversalListenerImpl
           implements NodeTraversalListener {
 
-    private final WorkingCopy workingCopy;
-
-    public NodeTraversalListenerImpl(WorkingCopy workingCopy) {
-      this.workingCopy = workingCopy;
+    public MethodInvocationNodeTraversalListenerImpl() {
     }
 
     public void notifyAboutNode(NodeTraversalEvent event) {
       List<Tree> nodeStack = event.getParentList();
-      convertToLogFromSysOut((ExpressionTree)event.getCurrentNode(), event.getTreeMaker(),
-                             (ClassTree)nodeStack.get(0), workingCopy, event.getImports());
+      convertToLogFromSysOut((ExpressionTree) event.getCurrentNode(),
+                             event.getTreeMaker(),
+                             (ClassTree) nodeStack.get(0),
+                             event.getWorkingCopy(),
+                             event.getImports());
     }
 
     public Kind getTreeKind() {
       return Kind.METHOD_INVOCATION;
+    }
+  }
+
+  public static void addLogToMethodBlock(ClassTree clazzTree,
+                                         MethodTree method,
+                                         WorkingCopy workingCopy,
+                                         TreeMaker make) {
+    Object[] objects = addLoggerToClass(false, clazzTree, workingCopy, make,
+                                        workingCopy.getCompilationUnit(), true,
+                                        Level.FINEST);
+    String loggerName = (String) objects[0];
+    /**
+     * Adds a logger for all levels
+     * TODO check whether method with same signature already exists or not
+     */
+    StringBuilder logMethodContent =
+            new StringBuilder("{" + "if (").append(loggerName).
+            append(".isLoggable(level)) { StringBuilder message ").
+            append("= new StringBuilder(\"Entering Method \")").
+            append(".append(methodName).append(\" (\");").
+            append("for(Object param : parameters) {").
+            append("message.append(param != null ? param.toString() : \"NULL\").append(\", \");" +
+                   "}").
+            append("if(parameters != null && parameters.length > 0)").
+            append(
+            "message.delete(message.length() - 2, message.length());").
+            append(
+            "message.append(\")\")").
+            append(loggerName).
+            append(".log(level, message.toString());").
+            append("}" + "}");
+    logMethodContent.delete(logMethodContent.length() - 2,
+                            logMethodContent.length());
+    List<VariableTree> generatedMethodParams = new ArrayList<VariableTree>(3);
+    generatedMethodParams.add(make.Variable(make.Modifiers(new HashSet()),
+                                            "level",
+                                            make.Identifier(Level.class.getName()),
+                                            null));
+    generatedMethodParams.add(make.Variable(make.Modifiers(new HashSet()),
+                                            "methodName",
+                                            make.Identifier("String"), null));
+    generatedMethodParams.add(make.Variable(make.Modifiers(new HashSet()),
+                                            "parameters",
+                                            make.Identifier("Object..."), null));
+    ArrayList<Modifier> modifiers = new ArrayList();
+    Collections.addAll(modifiers, Modifier.FINAL, Modifier.PRIVATE,
+                       Modifier.STATIC);
+    ExpressionTree returnType = make.Identifier("void");
+    MethodTree logMethod = make.Method(make.Modifiers(new HashSet(modifiers)),
+                                       "logMethod", returnType,
+                                       Collections.<TypeParameterTree>emptyList(),
+                                       generatedMethodParams,
+                                       Collections.<ExpressionTree>emptyList(),
+                                       logMethodContent.toString(), null);
+    ClassTree modifiedClazz = (ClassTree) objects[1];
+    modifiedClazz = make.insertClassMember(modifiedClazz, 0,
+                                           logMethod);
+    workingCopy.rewrite(clazzTree, modifiedClazz);
+    BlockTree originalMethodBlock = method.getBody();
+    List<? extends VariableTree> params = method.getParameters();
+    List<ExpressionTree> arguments =
+            new ArrayList<ExpressionTree>();
+    arguments.add(make.MemberSelect(make.Identifier(Level.class.getName()),
+                                    "FINEST"));
+    arguments.add(make.Literal(method.getName().
+                               toString()));
+    for (VariableTree param : params) {
+      arguments.add(make.Identifier(param.getName().
+                                    toString()));
+    }
+
+    MethodInvocationTree newLogMethodInvocationTree;
+    newLogMethodInvocationTree =
+            make.MethodInvocation(Collections.<ExpressionTree>emptyList(),
+                                  make.MemberSelect(make.Identifier(clazzTree.getSimpleName()),
+                                                    "logMethod"), arguments);
+    BlockTree newMethodBlockTree =
+            make.insertBlockStatement(originalMethodBlock, 0,
+                                      make.ExpressionStatement(newLogMethodInvocationTree));
+    workingCopy.rewrite(originalMethodBlock, newMethodBlockTree);
+  }
+
+  private static class MethodNodeTraversalListenerImpl
+          implements NodeTraversalListener {
+
+    public void notifyAboutNode(NodeTraversalEvent event) {
+      List<Tree> trees = event.getParentList();
+      for (Tree tree : trees) {
+        LOGGER.warning(tree.getKind().
+                       toString());
+      }
+      addLogToMethodBlock((ClassTree) event.getParentList().
+                          get(0),
+                          (MethodTree) event.getCurrentNode(),
+                          event.getWorkingCopy(), event.getTreeMaker());
+    }
+
+    public Kind getTreeKind() {
+      return Kind.METHOD;
     }
   }
 }
