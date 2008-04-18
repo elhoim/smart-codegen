@@ -233,10 +233,6 @@ public class LoggerGenerationFactory {
             ParsingUtils.getMethodTreeComparator();
     List<MethodTree> memberMethods = getMemberMethodTrees(clazz);
     Collections.sort(memberMethods, methodComparator);
-    /**
-     * Adds a logger initializer
-     * TODO check whether method with same signature already exists or not
-     */
     StringBuilder content =
             new StringBuilder("{ java.util.logging.Handler[] handlers = ").append(loggerName).
             append(".getHandlers();").
@@ -284,10 +280,6 @@ public class LoggerGenerationFactory {
               position++,
               initLoggerHandlersMethod);
     }
-    /**
-     * Adds a logger for all levels
-     * TODO check whether method with same signature already exists or not
-     */
     content =
             new StringBuilder("{" + "if (").append(loggerName).
             append(".isLoggable(level)) {" + "for(Object message : messages) {").
@@ -448,67 +440,10 @@ public class LoggerGenerationFactory {
       }
       if (listener.getValue("logMethodFor" + clazzTree.getSimpleName()) == null) {
         String loggerName = (String) objects[0];
-        /**
-         * Adds a logger for all levels
-         * TODO check whether method with same signature already exists or not
-         */
-        StringBuilder logMethodContent =
-                new StringBuilder("{" + "if (").append(loggerName).
-                append(".isLoggable(level)) { StringBuilder message ").
-                append("= new StringBuilder(\"Entering Method \")").
-                append(".append(methodName).append(\" (\");").
-                append("for(Object param : parameters) {").
-                append("message.append(param != null ? param.toString() : \"NULL\").append(\", \");" +
-                       "}").
-                append("if(parameters != null && parameters.length > 0)").
-                append(
-                "message.delete(message.length() - 2, message.length());").
-                append(
-                "message.append(\")\")").
-                append(loggerName).
-                append(".log(level, message.toString());").
-                append("}" + "}");
-        logMethodContent.delete(logMethodContent.length() - 2,
-                                logMethodContent.length());
-        List<VariableTree> generatedMethodParams =
-                new ArrayList<VariableTree>(3);
-        generatedMethodParams.add(make.Variable(make.Modifiers(new HashSet()),
-                                                "level",
-                                                ParsingUtils.getMemberSelectTreeForClassName(make,
-                                                                                             Level.class),
-                                                null));
-        generatedMethodParams.add(make.Variable(make.Modifiers(new HashSet()),
-                                                "methodName",
-                                                make.Identifier("String"), null));
-        generatedMethodParams.add(make.Variable(make.Modifiers(new HashSet()),
-                                                "parameters",
-                                                make.Identifier("Object..."),
-                                                null));
-        ArrayList<Modifier> modifiers = new ArrayList();
-        Collections.addAll(modifiers, Modifier.FINAL, Modifier.PRIVATE,
-                           Modifier.STATIC);
-        ExpressionTree returnType = make.Identifier("void");
-        MethodTree logMethod = make.Method(make.Modifiers(new HashSet(modifiers)),
-                                           "logMethod", returnType,
-                                           Collections.<TypeParameterTree>emptyList(),
-                                           generatedMethodParams,
-                                           Collections.<ExpressionTree>emptyList(),
-                                           logMethodContent.toString(), null);
-        ClassTree modifiedClazz = (ClassTree) objects[1];
-        /**
-         * Fetch and sort the methods of the class
-         */
-        Comparator<MethodTree> methodComparator =
-                ParsingUtils.getMethodTreeComparator();
-        List<MethodTree> memberMethods = getMemberMethodTrees(modifiedClazz);
-        Collections.sort(memberMethods, methodComparator);
-        if (Collections.binarySearch(memberMethods, logMethod,
-                                     ParsingUtils.getMethodTreeComparator()) < 0) {
-          modifiedClazz = make.insertClassMember(modifiedClazz, 0,
-                                                 logMethod);
-        }
-        workingCopy.rewrite(clazzTree, modifiedClazz);
-        listener.setValue("logMethodFor" + clazzTree.getSimpleName(), Boolean.TRUE);
+        addMethodForLoggingMethod(loggerName, make, objects, workingCopy,
+                                  clazzTree);
+        listener.setValue("logMethodFor" + clazzTree.getSimpleName(),
+                          Boolean.TRUE);
       }
     }
     else {
@@ -536,6 +471,66 @@ public class LoggerGenerationFactory {
             make.insertBlockStatement(originalMethodBlock, 0,
                                       make.ExpressionStatement(newLogMethodInvocationTree));
     workingCopy.rewrite(originalMethodBlock, newMethodBlockTree);
+  }
+
+  private static void addMethodForLoggingMethod(String loggerName,
+                                                TreeMaker make,
+                                                Object[] objects,
+                                                WorkingCopy workingCopy,
+                                                ClassTree clazzTree) {
+    StringBuilder logMethodContent =
+            new StringBuilder("{" + "if (").append(loggerName).
+            append(".isLoggable(level)) { StringBuilder message ").
+            append("= new StringBuilder(\"Entering Method \")").
+            append(".append(methodName).append(\" (\");").
+            append("for(Object param : parameters) {").
+            append("message.append(param != null ? param.toString() : \"NULL\").append(\", \");" +
+                   "}").
+            append("if(parameters != null && parameters.length > 0)").
+            append("message.delete(message.length() - 2, message.length());").
+            append("message.append(\")\")").
+            append(loggerName).
+            append(".log(level, message.toString());").
+            append("}" + "}");
+    logMethodContent.delete(logMethodContent.length() - 2,
+                            logMethodContent.length());
+    List<VariableTree> generatedMethodParams =
+            new ArrayList<VariableTree>(3);
+    generatedMethodParams.add(make.Variable(make.Modifiers(new HashSet()),
+                                            "level",
+                                            ParsingUtils.getMemberSelectTreeForClassName(make,
+                                                                                         Level.class),
+                                            null));
+    generatedMethodParams.add(make.Variable(make.Modifiers(new HashSet()),
+                                            "methodName",
+                                            make.Identifier("String"), null));
+    generatedMethodParams.add(make.Variable(make.Modifiers(new HashSet()),
+                                            "parameters",
+                                            make.Identifier("Object..."), null));
+    ArrayList<Modifier> modifiers = new ArrayList();
+    Collections.addAll(modifiers, Modifier.FINAL,
+                       Modifier.PRIVATE,
+                       Modifier.STATIC);
+    ExpressionTree returnType = make.Identifier("void");
+    MethodTree logMethod =
+            make.Method(make.Modifiers(new HashSet(modifiers)), "logMethod",
+                        returnType, Collections.<TypeParameterTree>emptyList(),
+                        generatedMethodParams,
+                        Collections.<ExpressionTree>emptyList(),
+                        logMethodContent.toString(), null);
+    ClassTree modifiedClazz = (ClassTree) objects[1];
+    /**
+     * Fetch and sort the methods of the class
+     */
+    Comparator<MethodTree> methodComparator =
+            ParsingUtils.getMethodTreeComparator();
+    List<MethodTree> memberMethods = getMemberMethodTrees(modifiedClazz);
+    Collections.sort(memberMethods, methodComparator);
+    if (Collections.binarySearch(memberMethods, logMethod,
+                                 ParsingUtils.getMethodTreeComparator()) < 0) {
+      modifiedClazz = make.insertClassMember(modifiedClazz, 0, logMethod);
+    }
+    workingCopy.rewrite(clazzTree, modifiedClazz);
   }
 
   private static class MethodInvocationNodeTraversalListenerImpl
@@ -591,10 +586,6 @@ public class LoggerGenerationFactory {
 
     public void notifyAboutNode(NodeTraversalEvent event) {
       List<Tree> trees = event.getParentList();
-      for (Tree tree : trees) {
-        LOGGER.warning(tree.getKind().
-                       toString());
-      }
       addLogToMethodBlock((ClassTree) event.getParentList().
                           get(0),
                           (MethodTree) event.getCurrentNode(),
