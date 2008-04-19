@@ -22,20 +22,30 @@
 package com.smartitengineering.javasourcetreeparser;
 
 import com.sun.source.tree.Tree.Kind;
+import java.util.HashMap;
 
 /**
  *
  * @author imyousuf
  */
-public abstract class AbstractNodeTraversalListener<E extends Kind> implements NodeTraversalListener<E>, StateContainer{
-  
+public abstract class AbstractNodeTraversalListener<E extends Kind>
+        implements NodeTraversalListener<E>, StateContainer {
+
   private StateContainer stateContainer;
-  
+
   protected AbstractNodeTraversalListener(StateContainer stateContainer) {
-    if(stateContainer == null) {
+    if (stateContainer == null) {
       throw new IllegalArgumentException("Initialization Listener can not be null!");
     }
     this.stateContainer = stateContainer;
+  }
+
+  protected AbstractNodeTraversalListener() {
+    this.stateContainer = new DefaultStateContainerImpl();
+  }
+  
+  protected StateContainer getStateContainer() {
+    return stateContainer;
   }
 
   public Object getValue(String key) {
@@ -63,5 +73,35 @@ public abstract class AbstractNodeTraversalListener<E extends Kind> implements N
     stateContainer.unsetInitialized();
   }
 
-  
+  private static class DefaultStateContainerImpl
+          implements StateContainer {
+
+    private boolean initialized = false;
+    private HashMap<String, Object> initMap = new HashMap<String, Object>();
+
+    public boolean isInitialized() {
+      return initialized;
+    }
+
+    public void setInitialized() {
+      setInitializationStatus(true);
+    }
+
+    public void unsetInitialized() {
+      setInitializationStatus(false);
+    }
+
+    public void setInitializationStatus(boolean initialized) {
+      this.initialized = initialized;
+    }
+
+    public Object getValue(String key) {
+      return initMap.get(key);
+    }
+
+    public void setValue(String key,
+                         Object value) {
+      initMap.put(key, value);
+    }
+  }
 }
