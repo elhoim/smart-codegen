@@ -27,40 +27,40 @@ import com.sun.source.tree.Tree.Kind;
  *
  * @author imyousuf
  */
-public abstract class AbstractNodeTraversalListener<E extends Kind> implements NodeTraversalListener<E>, StateListener{
+public abstract class AbstractNodeTraversalListener<E extends Kind> implements NodeTraversalListener<E>, StateContainer{
   
-  private StateListener initializationListener;
+  private StateContainer stateContainer;
   
-  protected AbstractNodeTraversalListener(StateListener initializationListener) {
-    if(initializationListener == null) {
+  protected AbstractNodeTraversalListener(StateContainer stateContainer) {
+    if(stateContainer == null) {
       throw new IllegalArgumentException("Initialization Listener can not be null!");
     }
-    this.initializationListener = initializationListener;
+    this.stateContainer = stateContainer;
   }
 
   public Object getValue(String key) {
-    return initializationListener.getValue(key);
+    return stateContainer.getValue(key);
   }
 
   public boolean isInitialized() {
-    return initializationListener.isInitialized();
+    return stateContainer.isInitialized();
   }
 
   public void setInitializationStatus(boolean initialized) {
-    initializationListener.setInitializationStatus(initialized);
+    stateContainer.setInitializationStatus(initialized);
   }
 
   public void setInitialized() {
-    initializationListener.setInitialized();
+    stateContainer.setInitialized();
   }
 
   public void setValue(String key,
                        Object value) {
-    initializationListener.setValue(key, value);
+    stateContainer.setValue(key, value);
   }
 
   public void unsetInitialized() {
-    initializationListener.unsetInitialized();
+    stateContainer.unsetInitialized();
   }
 
   

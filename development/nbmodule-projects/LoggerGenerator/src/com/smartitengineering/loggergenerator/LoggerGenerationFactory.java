@@ -20,7 +20,7 @@
  */
 package com.smartitengineering.loggergenerator;
 
-import com.smartitengineering.javasourcetreeparser.StateListener;
+import com.smartitengineering.javasourcetreeparser.StateContainer;
 import com.smartitengineering.javasourcetreeparser.JavaSourceTreeParser;
 import com.smartitengineering.javasourcetreeparser.NodeTraversalEvent;
 import com.smartitengineering.javasourcetreeparser.NodeTraversalListener;
@@ -86,7 +86,7 @@ public class LoggerGenerationFactory {
                                              final ClassTree clazz,
                                              final WorkingCopy workingCopy,
                                              final List<? extends ImportTree> imports,
-                                             StateListener listener) {
+                                             StateContainer listener) {
     boolean hasStaticImport = false;
     if (listener != null) {
       if (listener.isInitialized()) {
@@ -422,7 +422,7 @@ public class LoggerGenerationFactory {
                                          MethodTree method,
                                          WorkingCopy workingCopy,
                                          TreeMaker make,
-                                         StateListener listener) {
+                                         StateContainer listener) {
     Object[] objects;
     if (listener != null) {
       if (listener.getValue("addLoggerClassReturnValueFor" +
@@ -534,7 +534,7 @@ public class LoggerGenerationFactory {
   }
 
   private static class MethodInvocationNodeTraversalListenerImpl
-          implements NodeTraversalListener, StateListener {
+          implements NodeTraversalListener, StateContainer {
 
     private boolean initialized = false;
     private HashMap<String, Object> initMap = new HashMap<String, Object>();
@@ -579,7 +579,7 @@ public class LoggerGenerationFactory {
   }
 
   private static class MethodNodeTraversalListenerImpl
-          implements NodeTraversalListener, StateListener {
+          implements NodeTraversalListener, StateContainer {
 
     private boolean initialized = false;
     private HashMap<String, Object> initMap = new HashMap<String, Object>();
