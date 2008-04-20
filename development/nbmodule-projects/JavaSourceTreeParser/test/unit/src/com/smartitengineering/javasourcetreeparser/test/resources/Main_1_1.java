@@ -108,8 +108,8 @@ public class Main_1_1 {
     ActionListener firstActionListener = new ActionListener() {
 
       public void actionPerformed(ActionEvent e) {
-        System.out.println("Not Supported yet!");
-        throw new UnsupportedOperationException("Not supported yet.");
+        System.out.println("Not Supported yet! -- 1");
+        throw new UnsupportedOperationException("Not supported yet. -- 1");
       }
     };
     JButton button = new JButton();
@@ -118,8 +118,8 @@ public class Main_1_1 {
     button.addActionListener(new ActionListener() {
 
                        public void actionPerformed(ActionEvent e) {
-                         System.out.println("Not Supported yet!");
-                         throw new UnsupportedOperationException("Not supported yet.");
+                         System.out.println("Not Supported yet! -- 2");
+                         throw new UnsupportedOperationException("Not supported yet. -- 2");
                        }
                      });
     main.collectionMembers.add("Upoma");

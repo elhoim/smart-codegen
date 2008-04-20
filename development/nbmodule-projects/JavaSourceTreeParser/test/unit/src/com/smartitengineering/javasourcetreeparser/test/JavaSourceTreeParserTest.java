@@ -27,6 +27,7 @@ import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.Tree;
 import java.io.File;
 import java.util.List;
+import java.util.logging.ConsoleHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import junit.framework.TestCase;
@@ -107,6 +108,11 @@ public class JavaSourceTreeParserTest
           }
 
           public void run(WorkingCopy workingCopy) throws Exception {
+            Logger mLogger = Logger.getLogger("com.smartitengineering");
+            mLogger.setLevel(Level.FINEST);
+            ConsoleHandler handler = new ConsoleHandler();
+            handler.setLevel(Level.FINEST);
+            mLogger.addHandler(handler);
             workingCopy.toPhase(Phase.PARSED);
             TreeMaker make = workingCopy.getTreeMaker();
             CompilationUnitTree compilationUnitTree =

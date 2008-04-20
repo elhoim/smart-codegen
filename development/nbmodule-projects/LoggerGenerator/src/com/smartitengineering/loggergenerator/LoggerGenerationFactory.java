@@ -36,6 +36,7 @@ import com.sun.source.tree.ImportTree;
 import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
+import com.sun.source.tree.PrimitiveTypeTree;
 import com.sun.source.tree.StatementTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.Tree.Kind;
@@ -54,6 +55,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Pattern;
 import javax.lang.model.element.Modifier;
+import javax.lang.model.type.TypeKind;
 import org.netbeans.api.java.source.JavaSource.Phase;
 import org.netbeans.api.java.source.TreeMaker;
 import org.netbeans.api.java.source.WorkingCopy;
@@ -470,6 +472,29 @@ public class LoggerGenerationFactory {
     BlockTree newMethodBlockTree =
             make.insertBlockStatement(originalMethodBlock, 0,
                                       make.ExpressionStatement(newLogMethodInvocationTree));
+    /**
+     * If the method return type is void then add a log at the end of the block
+     */
+    Tree returnType = method.getReturnType();
+    if (returnType != null && returnType.getKind().
+            equals(Kind.PRIMITIVE_TYPE) && ((PrimitiveTypeTree) returnType).getPrimitiveTypeKind().
+            equals(TypeKind.VOID)) {
+      List<ExpressionTree> exitLogArguments =
+                  new ArrayList<ExpressionTree>();
+          //Add the level
+          exitLogArguments.add(make.MemberSelect(make.Identifier(Level.class.getName()),
+                                          "FINEST"));
+          //Add the sys out args
+          exitLogArguments.add(make.Literal(new StringBuilder("Exiting method: ").append(method.getName().toString()).toString()));
+          MethodInvocationTree exitLogMethodInvocationTree;
+          exitLogMethodInvocationTree =
+                  make.MethodInvocation(Collections.<ExpressionTree>emptyList(),
+                                        make.MemberSelect(make.Identifier(clazzTree.getSimpleName().toString()),
+                                                          "log"), exitLogArguments);
+          newMethodBlockTree =
+            make.addBlockStatement(newMethodBlockTree,
+                                      make.ExpressionStatement(exitLogMethodInvocationTree));
+    }
     workingCopy.rewrite(originalMethodBlock, newMethodBlockTree);
   }
 
@@ -489,7 +514,8 @@ public class LoggerGenerationFactory {
             append("if(parameters != null && parameters.length > 0)").
             append("message.delete(message.length() - 2, message.length());").
             append("message.append(\")\")").
-            append(loggerName).
+            append(clazzTree.getSimpleName().
+                   toString()).
             append(".log(level, message.toString());").
             append("}" + "}");
     logMethodContent.delete(logMethodContent.length() - 2,

@@ -132,7 +132,8 @@ public class JavaSourceTreeParser {
     parentTrees.add(clazz);
     List<? extends Tree> members = clazz.getMembers();
     for (Tree member : members) {
-      fireNodeTraversalListener(workingCopy, make, member, parentTrees, importTree);
+      fireNodeTraversalListener(workingCopy, make, member, parentTrees,
+                                importTree);
       parentTrees.add(member);
       Kind memberKind = member.getKind();
       if (memberKind.equals(Kind.METHOD)) {
@@ -161,6 +162,7 @@ public class JavaSourceTreeParser {
                        importTree);
       }
       else {
+        LOGGER.warning("UNKNOWN Member!");
       }
       parentTrees.remove(member);
     }
@@ -329,8 +331,8 @@ public class JavaSourceTreeParser {
       case EMPTY_STATEMENT:
         break;
       default:
-        LOGGER.finest("UNKNOWN STMT (" + statementTree.getKind().
-                      name() + "): " + statementTree.toString());
+        LOGGER.warning("UNKNOWN STMT (" + statementTree.getKind().
+                       name() + "): " + statementTree.toString());
     }
     parents.remove(statementTree);
   }
@@ -499,9 +501,9 @@ public class JavaSourceTreeParser {
                             parents, importTrees);
         break;
       default:
-        LOGGER.finest("UNKNOWN EXPR (" + expressionKind.name() + "): " +
-                      expressionTree.toString() + " " + expressionTree.getClass().
-                      getName());
+        LOGGER.warning("UNKNOWN EXPR (" + expressionKind.name() + "): " +
+                       expressionTree.toString() + " " + expressionTree.getClass().
+                       getName());
     }
     parents.remove(expressionTree);
   }
@@ -523,7 +525,7 @@ public class JavaSourceTreeParser {
     parseVariableType(type, workingCopy, make, parents, importTrees);
     ExpressionTree varExpression = variableTree.getInitializer();
     if (varExpression != null) {
-      logExpressionTree(varExpression);
+      parseExpressionTree(varExpression, workingCopy, make, parents, importTrees);
     }
     parents.remove(variableTree);
   }
@@ -572,8 +574,8 @@ public class JavaSourceTreeParser {
       case PRIMITIVE_TYPE:
         break;
       default:
-        LOGGER.finest("UNKNOWN TYPE (" + variableTypeKind + "): " +
-                      type.toString());
+        LOGGER.warning("UNKNOWN TYPE (" + variableTypeKind + "): " +
+                       type.toString());
     }
     parents.remove(type);
   }
