@@ -602,6 +602,9 @@ public class LoggerGenerationFactory {
                          Object value) {
       initMap.put(key, value);
     }
+
+    public void notifyEndOfNodeParsing(NodeTraversalEvent event) {
+    }
   }
 
   private static class MethodNodeTraversalListenerImpl
@@ -645,6 +648,9 @@ public class LoggerGenerationFactory {
     public void setValue(String key,
                          Object value) {
       initMap.put(key, value);
+    }
+
+    public void notifyEndOfNodeParsing(NodeTraversalEvent event) {
     }
   }
 }
