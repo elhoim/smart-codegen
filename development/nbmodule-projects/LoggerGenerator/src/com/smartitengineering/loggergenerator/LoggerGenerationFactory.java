@@ -38,7 +38,9 @@ import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.PrimitiveTypeTree;
+import com.sun.source.tree.ReturnTree;
 import com.sun.source.tree.StatementTree;
+import com.sun.source.tree.ThrowTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.Tree.Kind;
 import com.sun.source.tree.TypeParameterTree;
@@ -68,6 +70,7 @@ public class LoggerGenerationFactory {
 
   private static final Logger LOGGER;
   
+
   static {
     LOGGER = Logger.getLogger(LoggerGenerationFactory.class.getName());
     Handler[] handlers = LOGGER.getHandlers();
@@ -105,17 +108,19 @@ public class LoggerGenerationFactory {
             }
           }
         }
-        stateContainer.setValue("hasStaticImport", Boolean.valueOf(hasStaticImport));
+        stateContainer.setValue("hasStaticImport",
+                                Boolean.valueOf(hasStaticImport));
         stateContainer.setInitialized();
       }
       if (stateContainer.getValue("addLoggerClassReturnValueFor" +
-                            clazz.getSimpleName()) == null) {
+                                  clazz.getSimpleName()) == null) {
         Object[] objects = addLoggerToClass(false, clazz, workingCopy, make,
                                             workingCopy.getCompilationUnit(),
                                             true,
                                             Level.FINEST);
-        stateContainer.setValue("addLoggerClassReturnValueFor" + clazz.getSimpleName(),
-                          objects);
+        stateContainer.setValue("addLoggerClassReturnValueFor" +
+                                clazz.getSimpleName(),
+                                objects);
         stateContainer.setInitialized();
       }
     }
@@ -281,6 +286,9 @@ public class LoggerGenerationFactory {
               position++,
               initLoggerHandlersMethod);
     }
+    /**
+     * Adding ClassName.log (Level, Object... messages) method
+     */
     content =
             new StringBuilder("{" + "if (").append(loggerName).
             append(".isLoggable(level)) {" + "for(Object message : messages) {").
@@ -304,6 +312,35 @@ public class LoggerGenerationFactory {
       modifiedClazz = make.insertClassMember(modifiedClazz == null ? clazz : modifiedClazz, position++,
                                              logMethod);
     }
+    /**
+     * Adding ClassName.log (Level level, String messages, Throwable throwable) method
+     */
+    content =
+            new StringBuilder("{" + "if (").append(loggerName).
+            append(".isLoggable(level)) {").
+            append(loggerName).
+            append(".log(level, message != null ? message.toString() : \"NULL\", throwable);" +
+                   "}" + "}");
+    params = new ArrayList<VariableTree>(3);
+    params.add(make.Variable(make.Modifiers(new HashSet()), "level",
+                             ParsingUtils.getMemberSelectTreeForClassName(make,
+                                                                          Level.class),
+                             null));
+    params.add(make.Variable(make.Modifiers(new HashSet()), "message",
+                             make.Identifier("String"), null));
+    params.add(make.Variable(make.Modifiers(new HashSet()), "throwable",
+                             make.Identifier("Throwable"), null));
+    logMethod = make.Method(make.Modifiers(new HashSet(modifiers)),
+                            "log", returnType,
+                            Collections.<TypeParameterTree>emptyList(),
+                            params,
+                            Collections.<ExpressionTree>emptyList(),
+                            content.toString(), null);
+    if (Collections.binarySearch(memberMethods, logMethod, methodComparator) < 0) {
+      modifiedClazz = make.insertClassMember(modifiedClazz == null ? clazz : modifiedClazz, position++,
+                                             logMethod);
+    }
+    /*********************************/
     if (modifiedClazz == null) {
       modifiedClazz = clazz;
     }
@@ -334,7 +371,8 @@ public class LoggerGenerationFactory {
                              final boolean ignoreExisting,
                              final boolean setLevel,
                              final Level level) throws IOException {
-    StateContainer shareableStateContainer = new AbstractNodeTraversalListener.DefaultStateContainerImpl();
+    StateContainer shareableStateContainer =
+            new AbstractNodeTraversalListener.DefaultStateContainerImpl();
     injectCodeWithListener(workingCopy, ignoreExisting, setLevel, level,
                            new MethodNodeTraversalListenerImpl(shareableStateContainer),
                            new ReturnNodeTraversalListenerImpl(shareableStateContainer),
@@ -435,12 +473,13 @@ public class LoggerGenerationFactory {
     if (stateContainer != null) {
       objects =
               checkStateForLogger(stateContainer, clazzTree, workingCopy, make);
-      if (stateContainer.getValue("logMethodFor" + clazzTree.getSimpleName()) == null) {
+      if (stateContainer.getValue("logMethodFor" + clazzTree.getSimpleName()) ==
+              null) {
         String loggerName = (String) objects[0];
         addMethodForLoggingMethod(loggerName, make, objects, workingCopy,
                                   clazzTree);
         stateContainer.setValue("logMethodFor" + clazzTree.getSimpleName(),
-                          Boolean.TRUE);
+                                Boolean.TRUE);
       }
     }
     else {
@@ -495,20 +534,20 @@ public class LoggerGenerationFactory {
     }
     workingCopy.rewrite(originalMethodBlock, newMethodBlockTree);
   }
-  
-    private static Object[] checkStateForLogger(StateContainer stateContainer,
+
+  private static Object[] checkStateForLogger(StateContainer stateContainer,
                                               ClassTree clazzTree,
                                               WorkingCopy workingCopy,
                                               TreeMaker make) {
-     Object[] objects;
-    if(stateContainer == null) {
+    Object[] objects;
+    if (stateContainer == null) {
       throw new IllegalArgumentException();
     }
     if (stateContainer.getValue("addLoggerClassReturnValueFor" +
-            clazzTree.getSimpleName()) != null) {
+                                clazzTree.getSimpleName()) != null) {
       objects =
               (Object[]) stateContainer.getValue("addLoggerClassReturnValueFor" +
-                                               clazzTree.getSimpleName());
+                                                 clazzTree.getSimpleName());
     }
     else {
       objects =
@@ -516,7 +555,7 @@ public class LoggerGenerationFactory {
                                workingCopy.getCompilationUnit(), true,
                                Level.FINEST);
       stateContainer.setValue("addLoggerClassReturnValueFor" +
-              clazzTree.getSimpleName(), objects);
+                              clazzTree.getSimpleName(), objects);
       stateContainer.setInitialized();
     }
     return objects;
@@ -583,13 +622,162 @@ public class LoggerGenerationFactory {
     workingCopy.rewrite(clazzTree, modifiedClazz);
   }
 
+  private static void addLogBeforeReturnStatement(ClassTree classTree,
+                                                  ReturnTree returnTree,
+                                                  WorkingCopy workingCopy,
+                                                  TreeMaker make,
+                                                  List<Tree> trees,
+                                                  StateContainer stateContainer) {
+    if (stateContainer != null) {
+      checkStateForLogger(stateContainer, classTree, workingCopy, make);
+    }
+    Tree returnEncapsulatingTree = trees.get(trees.size() - 1);
+    Kind encapsulatingReturnKind = returnEncapsulatingTree.getKind();
+    if (encapsulatingReturnKind.equals(Kind.BLOCK)) {
+      BlockTree oldBlockTree = (BlockTree) returnEncapsulatingTree;
+      addLogBeforeReturnWhichIsInABlock(true, oldBlockTree, returnTree, make,
+                                        classTree, workingCopy);
+    }
+    else {
+      switch (encapsulatingReturnKind) {
+        case IF:
+        case DO_WHILE_LOOP:
+        case FOR_LOOP:
+        case ENHANCED_FOR_LOOP:
+        case WHILE_LOOP:
+        case CASE:
+          BlockTree newBlockTree =
+                  make.Block(Collections.singletonList(returnTree), false);
+          workingCopy.rewrite(returnTree, newBlockTree);
+          addLogBeforeReturnWhichIsInABlock(false, newBlockTree, returnTree,
+                                            make,
+                                            classTree, workingCopy);
+          break;
+        default:
+          LOGGER.warning("Unsupprted RETURN encapsultor: " +
+                         returnEncapsulatingTree);
+      }
+    }
+  }
+
+  private static void addLogBeforeReturnWhichIsInABlock(boolean isBlock,
+                                                        BlockTree blockTree,
+                                                        ReturnTree returnTree,
+                                                        TreeMaker make,
+                                                        ClassTree classTree,
+                                                        WorkingCopy workingCopy) {
+    List<? extends StatementTree> statements = blockTree.getStatements();
+    int indexOfReturn = -1;
+    for (StatementTree statementTree : statements) {
+      indexOfReturn++;
+      if (statementTree.equals(returnTree)) {
+        break;
+      }
+    }
+    List<ExpressionTree> returnLogArguments =
+            new ArrayList<ExpressionTree>();
+    //Add the level
+    returnLogArguments.add(make.MemberSelect(make.Identifier(Level.class.getName()),
+                                           "FINEST"));
+    ExpressionTree returnExpression = returnTree.getExpression();
+    returnExpression =
+            returnExpression != null ? returnExpression : make.Literal("Empty Expression!");
+    //Add the sys out args
+    returnLogArguments.add(make.Binary(Kind.PLUS, make.Literal("Returning... "),
+                                     make.Parenthesized(returnExpression)));
+    MethodInvocationTree logMethodInvocationTree;
+    logMethodInvocationTree =
+            make.MethodInvocation(Collections.<ExpressionTree>emptyList(),
+                                  make.MemberSelect(make.Identifier(classTree.getSimpleName().
+                                                                    toString()),
+                                                    "log"), returnLogArguments);
+    BlockTree newMethodBlockTree =
+            make.insertBlockStatement(blockTree, indexOfReturn,
+                                      make.ExpressionStatement(logMethodInvocationTree));
+    workingCopy.rewrite(isBlock ? blockTree : returnTree, newMethodBlockTree);
+  }
+
+  private static void addLogBeforeThrowStatement(ClassTree classTree,
+                                                 ThrowTree throwTree,
+                                                 WorkingCopy workingCopy,
+                                                 TreeMaker make,
+                                                 List<Tree> trees,
+                                                 StateContainer stateContainer) {
+    if (stateContainer != null) {
+      checkStateForLogger(stateContainer, classTree, workingCopy, make);
+    }
+    Tree throwEncapsulatingTree = trees.get(trees.size() - 1);
+    Kind encapsulatingThrowKind = throwEncapsulatingTree.getKind();
+    if (encapsulatingThrowKind.equals(Kind.BLOCK)) {
+      BlockTree oldBlockTree = (BlockTree) throwEncapsulatingTree;
+      addLogBeforeThrowWhichIsInABlock(true, oldBlockTree, throwTree, make,
+                                       classTree, workingCopy);
+    }
+    else {
+      switch (encapsulatingThrowKind) {
+        case IF:
+        case DO_WHILE_LOOP:
+        case FOR_LOOP:
+        case ENHANCED_FOR_LOOP:
+        case WHILE_LOOP:
+        case CASE:
+          BlockTree newBlockTree =
+                  make.Block(Collections.singletonList(throwTree), false);
+          workingCopy.rewrite(throwTree, newBlockTree);
+          addLogBeforeThrowWhichIsInABlock(false, newBlockTree, throwTree, make,
+                                           classTree, workingCopy);
+          break;
+        default:
+          LOGGER.warning("Unsupprted THROW encapsultor: " +
+                         throwEncapsulatingTree);
+      }
+    }
+  }
+
+  private static void addLogBeforeThrowWhichIsInABlock(boolean isBlock,
+                                                       BlockTree blockTree,
+                                                       ThrowTree throwTree,
+                                                       TreeMaker make,
+                                                       ClassTree classTree,
+                                                       WorkingCopy workingCopy) {
+    List<? extends StatementTree> statements = blockTree.getStatements();
+    int indexOfReturn = -1;
+    for (StatementTree statementTree : statements) {
+      indexOfReturn++;
+      if (statementTree.equals(throwTree)) {
+        break;
+      }
+    }
+    List<ExpressionTree> logThrowArgs =
+            new ArrayList<ExpressionTree>();
+    //Add the level
+    logThrowArgs.add(make.MemberSelect(make.Identifier(Level.class.getName()),
+                                       "FINEST"));
+    ExpressionTree returnExpression = throwTree.getExpression();
+    returnExpression =
+            returnExpression != null ? returnExpression : make.Literal("Empty Expression!");
+    //Add the sys out args
+    logThrowArgs.add(make.Literal("Throwing... "));
+    logThrowArgs.add(returnExpression);
+    MethodInvocationTree logMethodInvocationTree;
+    logMethodInvocationTree =
+            make.MethodInvocation(Collections.<ExpressionTree>emptyList(),
+                                  make.MemberSelect(make.Identifier(classTree.getSimpleName().
+                                                                    toString()),
+                                                    "log"), logThrowArgs);
+    BlockTree newMethodBlockTree =
+            make.insertBlockStatement(blockTree, indexOfReturn,
+                                      make.ExpressionStatement(logMethodInvocationTree));
+    workingCopy.rewrite(isBlock ? blockTree : throwTree, newMethodBlockTree);
+  }
+
   private static class MethodInvocationNodeTraversalListenerImpl
           extends AbstractNodeTraversalListener {
 
     public MethodInvocationNodeTraversalListenerImpl() {
       super();
     }
-    
+
     public MethodInvocationNodeTraversalListenerImpl(StateContainer preInitializedStateContainer) {
       super(preInitializedStateContainer);
     }
@@ -617,11 +805,10 @@ public class LoggerGenerationFactory {
     public MethodNodeTraversalListenerImpl(StateContainer preInitializedStateContainer) {
       super(preInitializedStateContainer);
     }
-    
+
     public void notifyAboutNode(NodeTraversalEvent event) {
       List<Tree> trees = event.getParentList();
-      addLogToMethodBlock((ClassTree) event.getParentList().
-                          get(0),
+      addLogToMethodBlock((ClassTree) trees.get(0),
                           (MethodTree) event.getCurrentNode(),
                           event.getWorkingCopy(), event.getTreeMaker(), this);
     }
@@ -634,44 +821,52 @@ public class LoggerGenerationFactory {
     }
   }
 
-  private static class ReturnNodeTraversalListenerImpl extends AbstractNodeTraversalListener {
-    
+  private static class ReturnNodeTraversalListenerImpl
+          extends AbstractNodeTraversalListener {
+
     public ReturnNodeTraversalListenerImpl(StateContainer preInitializedStateContainer) {
       super(preInitializedStateContainer);
     }
 
     public void notifyAboutNode(NodeTraversalEvent event) {
-      
+      List<Tree> trees = event.getParentList();
+      addLogBeforeReturnStatement((ClassTree) trees.get(0),
+                                  (ReturnTree) event.getCurrentNode(),
+                                  event.getWorkingCopy(), event.getTreeMaker(),
+                                  trees,
+                                  getStateContainer());
+
     }
 
     public void notifyEndOfNodeParsing(NodeTraversalEvent event) {
-      
     }
 
     public Kind getTreeKind() {
       return Kind.RETURN;
     }
-    
   }
-  
-  private static class ThrowNodeTraversalListenerImpl extends AbstractNodeTraversalListener {
-    
+
+  private static class ThrowNodeTraversalListenerImpl
+          extends AbstractNodeTraversalListener {
+
     public ThrowNodeTraversalListenerImpl(StateContainer preInitializedStateContainer) {
       super(preInitializedStateContainer);
     }
 
     public void notifyAboutNode(NodeTraversalEvent event) {
-      
+      List<Tree> trees = event.getParentList();
+      addLogBeforeThrowStatement((ClassTree) trees.get(0),
+                                 (ThrowTree) event.getCurrentNode(),
+                                 event.getWorkingCopy(), event.getTreeMaker(),
+                                 trees,
+                                 getStateContainer());
     }
 
     public void notifyEndOfNodeParsing(NodeTraversalEvent event) {
-      
     }
 
     public Kind getTreeKind() {
       return Kind.THROW;
     }
-    
   }
-  
 }

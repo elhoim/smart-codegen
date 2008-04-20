@@ -301,6 +301,12 @@ public class JavaSourceTreeParser {
         List<? extends CaseTree> cases = switchTree.getCases();
         if (cases != null) {
           for (CaseTree caseTree : cases) {
+            fireNodeTraversalListenerAboutStartOfNodeParsing(workingCopy, make,
+                                                             caseTree,
+                                                             parents,
+                                                             importTrees);
+
+            parents.add(caseTree);
             ExpressionTree caseExpression = caseTree.getExpression();
             if (caseExpression != null) {
               parseExpressionTree(caseExpression, workingCopy, make, parents,
@@ -314,6 +320,12 @@ public class JavaSourceTreeParser {
                                    importTrees);
               }
             }
+            parents.remove(caseTree);
+            fireNodeTraversalListenerAboutEndOfNodeParsing(workingCopy, make,
+                                                             caseTree,
+                                                             parents,
+                                                             importTrees);
+
           }
         }
         break;
@@ -562,10 +574,10 @@ public class JavaSourceTreeParser {
   }
 
   protected void parseVariableType(Tree type,
-                                WorkingCopy workingCopy,
-                                TreeMaker maker,
-                                List<Tree> parents,
-                                List<? extends ImportTree> importTrees) {
+                                   WorkingCopy workingCopy,
+                                   TreeMaker maker,
+                                   List<Tree> parents,
+                                   List<? extends ImportTree> importTrees) {
     if (type == null) {
       return;
     }
@@ -615,10 +627,10 @@ public class JavaSourceTreeParser {
   }
 
   protected void parseVariableTypes(List<? extends Tree> types,
-                                 WorkingCopy workingCopy,
-                                 TreeMaker maker,
-                                 List<Tree> parents,
-                                 List<? extends ImportTree> importTrees) {
+                                    WorkingCopy workingCopy,
+                                    TreeMaker maker,
+                                    List<Tree> parents,
+                                    List<? extends ImportTree> importTrees) {
     if (types == null) {
       return;
     }
@@ -630,10 +642,10 @@ public class JavaSourceTreeParser {
   }
 
   protected void parseExpressionTrees(List<? extends ExpressionTree> expressions,
-                                   WorkingCopy workingCopy,
-                                   TreeMaker maker,
-                                   List<Tree> parents,
-                                   List<? extends ImportTree> importTrees) {
+                                      WorkingCopy workingCopy,
+                                      TreeMaker maker,
+                                      List<Tree> parents,
+                                      List<? extends ImportTree> importTrees) {
     if (expressions == null) {
       return;
     }
@@ -725,7 +737,6 @@ public class JavaSourceTreeParser {
                                                              imports));
     }
   }
-
   /**
    * Code for implementing node traversal listener
    * END
@@ -734,32 +745,36 @@ public class JavaSourceTreeParser {
    * Code for implementing parsing lifecycle listener
    * Start
    */
-  private List<ParsingLifeCycleListener> parsingLifeCycleListeners = new ArrayList<ParsingLifeCycleListener>();
-  
+  private List<ParsingLifeCycleListener> parsingLifeCycleListeners =
+          new ArrayList<ParsingLifeCycleListener>();
+
   public void addParsingLifeCycleListener(ParsingLifeCycleListener parsingLifeCycleListener) {
-    if(parsingLifeCycleListener != null && !parsingLifeCycleListeners.contains(parsingLifeCycleListener)) {
+    if (parsingLifeCycleListener != null &&
+            !parsingLifeCycleListeners.contains(parsingLifeCycleListener)) {
       parsingLifeCycleListeners.add(parsingLifeCycleListener);
     }
   }
-  
+
   public boolean removeParsingLifeCycleListener(ParsingLifeCycleListener parsingLifeCycleListener) {
-    if(parsingLifeCycleListener != null && parsingLifeCycleListeners.contains(parsingLifeCycleListener)) {
+    if (parsingLifeCycleListener != null &&
+            parsingLifeCycleListeners.contains(parsingLifeCycleListener)) {
       return parsingLifeCycleListeners.remove(parsingLifeCycleListener);
     }
     return false;
   }
-  
+
   protected void fireBeginningOfParsing() {
-    for(ParsingLifeCycleListener parsingLifeCycleListener : parsingLifeCycleListeners) {
+    for (ParsingLifeCycleListener parsingLifeCycleListener : parsingLifeCycleListeners) {
       parsingLifeCycleListener.notifyBeginningOfParsing();
     }
   }
-  
+
   protected void fireEndOfParsing() {
-    for(ParsingLifeCycleListener parsingLifeCycleListener : parsingLifeCycleListeners) {
+    for (ParsingLifeCycleListener parsingLifeCycleListener : parsingLifeCycleListeners) {
       parsingLifeCycleListener.notifyEndOfParsing();
     }
   }
+
   /**
    * Code for implementing parsing lifecycle listener
    * END
