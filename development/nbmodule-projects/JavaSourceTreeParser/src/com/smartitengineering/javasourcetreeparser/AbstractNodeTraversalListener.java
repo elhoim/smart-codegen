@@ -73,7 +73,7 @@ public abstract class AbstractNodeTraversalListener<E extends Kind>
     stateContainer.unsetInitialized();
   }
 
-  private static class DefaultStateContainerImpl
+  public static class DefaultStateContainerImpl
           implements StateContainer {
 
     private boolean initialized = false;

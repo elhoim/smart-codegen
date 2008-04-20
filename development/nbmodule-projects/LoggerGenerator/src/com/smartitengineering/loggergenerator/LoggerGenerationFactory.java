@@ -20,6 +20,7 @@
  */
 package com.smartitengineering.loggergenerator;
 
+import com.smartitengineering.javasourcetreeparser.AbstractNodeTraversalListener;
 import com.smartitengineering.javasourcetreeparser.StateContainer;
 import com.smartitengineering.javasourcetreeparser.JavaSourceTreeParser;
 import com.smartitengineering.javasourcetreeparser.NodeTraversalEvent;
@@ -46,7 +47,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.logging.ConsoleHandler;
@@ -68,7 +68,6 @@ public class LoggerGenerationFactory {
 
   private static final Logger LOGGER;
   
-
   static {
     LOGGER = Logger.getLogger(LoggerGenerationFactory.class.getName());
     Handler[] handlers = LOGGER.getHandlers();
@@ -88,12 +87,12 @@ public class LoggerGenerationFactory {
                                              final ClassTree clazz,
                                              final WorkingCopy workingCopy,
                                              final List<? extends ImportTree> imports,
-                                             StateContainer listener) {
+                                             StateContainer stateContainer) {
     boolean hasStaticImport = false;
-    if (listener != null) {
-      if (listener.isInitialized()) {
+    if (stateContainer != null) {
+      if (stateContainer.isInitialized()) {
         hasStaticImport =
-                ((Boolean) listener.getValue("hasStaticImport")).booleanValue();
+                ((Boolean) stateContainer.getValue("hasStaticImport")).booleanValue();
       }
       else {
         for (ImportTree importTree : imports) {
@@ -106,18 +105,18 @@ public class LoggerGenerationFactory {
             }
           }
         }
-        listener.setValue("hasStaticImport", Boolean.valueOf(hasStaticImport));
-        listener.setInitialized();
+        stateContainer.setValue("hasStaticImport", Boolean.valueOf(hasStaticImport));
+        stateContainer.setInitialized();
       }
-      if (listener.getValue("addLoggerClassReturnValueFor" +
+      if (stateContainer.getValue("addLoggerClassReturnValueFor" +
                             clazz.getSimpleName()) == null) {
         Object[] objects = addLoggerToClass(false, clazz, workingCopy, make,
                                             workingCopy.getCompilationUnit(),
                                             true,
                                             Level.FINEST);
-        listener.setValue("addLoggerClassReturnValueFor" + clazz.getSimpleName(),
+        stateContainer.setValue("addLoggerClassReturnValueFor" + clazz.getSimpleName(),
                           objects);
-        listener.setInitialized();
+        stateContainer.setInitialized();
       }
     }
     else {
@@ -335,15 +334,18 @@ public class LoggerGenerationFactory {
                              final boolean ignoreExisting,
                              final boolean setLevel,
                              final Level level) throws IOException {
+    StateContainer shareableStateContainer = new AbstractNodeTraversalListener.DefaultStateContainerImpl();
     injectCodeWithListener(workingCopy, ignoreExisting, setLevel, level,
-                           new MethodNodeTraversalListenerImpl());
+                           new MethodNodeTraversalListenerImpl(shareableStateContainer),
+                           new ReturnNodeTraversalListenerImpl(shareableStateContainer),
+                           new ThrowNodeTraversalListenerImpl(shareableStateContainer));
   }
 
   public static void injectCodeWithListener(final WorkingCopy workingCopy,
                                             final boolean ignoreExisting,
                                             final boolean setLevel,
                                             final Level level,
-                                            final NodeTraversalListener listener)
+                                            final NodeTraversalListener... listeners)
           throws IOException {
     workingCopy.toPhase(Phase.RESOLVED);
     TreeMaker make = workingCopy.getTreeMaker();
@@ -353,7 +355,11 @@ public class LoggerGenerationFactory {
       if (Tree.Kind.CLASS == typeDecl.getKind()) {
         ClassTree clazz = (ClassTree) typeDecl;
         JavaSourceTreeParser treeParser = new JavaSourceTreeParser();
-        treeParser.addNodeTraversalListener(listener);
+        if (listeners != null && listeners.length > 0) {
+          for (NodeTraversalListener listener : listeners) {
+            treeParser.addNodeTraversalListener(listener);
+          }
+        }
         treeParser.logDebugInfoOfWorkingCopy(clazz, workingCopy);
         treeParser.parseWorkingCopy(clazz, workingCopy, make);
       }
@@ -424,27 +430,16 @@ public class LoggerGenerationFactory {
                                          MethodTree method,
                                          WorkingCopy workingCopy,
                                          TreeMaker make,
-                                         StateContainer listener) {
+                                         StateContainer stateContainer) {
     Object[] objects;
-    if (listener != null) {
-      if (listener.getValue("addLoggerClassReturnValueFor" +
-                            clazzTree.getSimpleName()) != null) {
-        objects = (Object[]) listener.getValue("addLoggerClassReturnValueFor" +
-                                               clazzTree.getSimpleName());
-      }
-      else {
-        objects = addLoggerToClass(false, clazzTree, workingCopy, make,
-                                   workingCopy.getCompilationUnit(), true,
-                                   Level.FINEST);
-        listener.setValue("addLoggerClassReturnValueFor" +
-                          clazzTree.getSimpleName(), objects);
-        listener.setInitialized();
-      }
-      if (listener.getValue("logMethodFor" + clazzTree.getSimpleName()) == null) {
+    if (stateContainer != null) {
+      objects =
+              checkStateForLogger(stateContainer, clazzTree, workingCopy, make);
+      if (stateContainer.getValue("logMethodFor" + clazzTree.getSimpleName()) == null) {
         String loggerName = (String) objects[0];
         addMethodForLoggingMethod(loggerName, make, objects, workingCopy,
                                   clazzTree);
-        listener.setValue("logMethodFor" + clazzTree.getSimpleName(),
+        stateContainer.setValue("logMethodFor" + clazzTree.getSimpleName(),
                           Boolean.TRUE);
       }
     }
@@ -480,22 +475,51 @@ public class LoggerGenerationFactory {
             equals(Kind.PRIMITIVE_TYPE) && ((PrimitiveTypeTree) returnType).getPrimitiveTypeKind().
             equals(TypeKind.VOID)) {
       List<ExpressionTree> exitLogArguments =
-                  new ArrayList<ExpressionTree>();
-          //Add the level
-          exitLogArguments.add(make.MemberSelect(make.Identifier(Level.class.getName()),
-                                          "FINEST"));
-          //Add the sys out args
-          exitLogArguments.add(make.Literal(new StringBuilder("Exiting method: ").append(method.getName().toString()).toString()));
-          MethodInvocationTree exitLogMethodInvocationTree;
-          exitLogMethodInvocationTree =
-                  make.MethodInvocation(Collections.<ExpressionTree>emptyList(),
-                                        make.MemberSelect(make.Identifier(clazzTree.getSimpleName().toString()),
-                                                          "log"), exitLogArguments);
-          newMethodBlockTree =
-            make.addBlockStatement(newMethodBlockTree,
-                                      make.ExpressionStatement(exitLogMethodInvocationTree));
+              new ArrayList<ExpressionTree>();
+      //Add the level
+      exitLogArguments.add(make.MemberSelect(make.Identifier(Level.class.getName()),
+                                             "FINEST"));
+      //Add the sys out args
+      exitLogArguments.add(make.Literal(new StringBuilder("Exiting method: ").append(method.getName().
+                                                                                     toString()).
+                                        toString()));
+      MethodInvocationTree exitLogMethodInvocationTree;
+      exitLogMethodInvocationTree =
+              make.MethodInvocation(Collections.<ExpressionTree>emptyList(),
+                                    make.MemberSelect(make.Identifier(clazzTree.getSimpleName().
+                                                                      toString()),
+                                                      "log"), exitLogArguments);
+      newMethodBlockTree =
+              make.addBlockStatement(newMethodBlockTree,
+                                     make.ExpressionStatement(exitLogMethodInvocationTree));
     }
     workingCopy.rewrite(originalMethodBlock, newMethodBlockTree);
+  }
+  
+    private static Object[] checkStateForLogger(StateContainer stateContainer,
+                                              ClassTree clazzTree,
+                                              WorkingCopy workingCopy,
+                                              TreeMaker make) {
+     Object[] objects;
+    if(stateContainer == null) {
+      throw new IllegalArgumentException();
+    }
+    if (stateContainer.getValue("addLoggerClassReturnValueFor" +
+            clazzTree.getSimpleName()) != null) {
+      objects =
+              (Object[]) stateContainer.getValue("addLoggerClassReturnValueFor" +
+                                               clazzTree.getSimpleName());
+    }
+    else {
+      objects =
+              addLoggerToClass(false, clazzTree, workingCopy, make,
+                               workingCopy.getCompilationUnit(), true,
+                               Level.FINEST);
+      stateContainer.setValue("addLoggerClassReturnValueFor" +
+              clazzTree.getSimpleName(), objects);
+      stateContainer.setInitialized();
+    }
+    return objects;
   }
 
   private static void addMethodForLoggingMethod(String loggerName,
@@ -560,10 +584,15 @@ public class LoggerGenerationFactory {
   }
 
   private static class MethodInvocationNodeTraversalListenerImpl
-          implements NodeTraversalListener, StateContainer {
+          extends AbstractNodeTraversalListener {
 
-    private boolean initialized = false;
-    private HashMap<String, Object> initMap = new HashMap<String, Object>();
+    public MethodInvocationNodeTraversalListenerImpl() {
+      super();
+    }
+    
+    public MethodInvocationNodeTraversalListenerImpl(StateContainer preInitializedStateContainer) {
+      super(preInitializedStateContainer);
+    }
 
     public void notifyAboutNode(NodeTraversalEvent event) {
       List<Tree> nodeStack = event.getParentList();
@@ -578,41 +607,17 @@ public class LoggerGenerationFactory {
       return Kind.METHOD_INVOCATION;
     }
 
-    public boolean isInitialized() {
-      return initialized;
-    }
-
-    public void setInitialized() {
-      setInitializationStatus(true);
-    }
-
-    public void unsetInitialized() {
-      setInitializationStatus(false);
-    }
-
-    public void setInitializationStatus(boolean initialized) {
-      this.initialized = initialized;
-    }
-
-    public Object getValue(String key) {
-      return initMap.get(key);
-    }
-
-    public void setValue(String key,
-                         Object value) {
-      initMap.put(key, value);
-    }
-
     public void notifyEndOfNodeParsing(NodeTraversalEvent event) {
     }
   }
 
   private static class MethodNodeTraversalListenerImpl
-          implements NodeTraversalListener, StateContainer {
+          extends AbstractNodeTraversalListener {
 
-    private boolean initialized = false;
-    private HashMap<String, Object> initMap = new HashMap<String, Object>();
-
+    public MethodNodeTraversalListenerImpl(StateContainer preInitializedStateContainer) {
+      super(preInitializedStateContainer);
+    }
+    
     public void notifyAboutNode(NodeTraversalEvent event) {
       List<Tree> trees = event.getParentList();
       addLogToMethodBlock((ClassTree) event.getParentList().
@@ -625,32 +630,48 @@ public class LoggerGenerationFactory {
       return Kind.METHOD;
     }
 
-    public boolean isInitialized() {
-      return initialized;
-    }
-
-    public void setInitialized() {
-      setInitializationStatus(true);
-    }
-
-    public void unsetInitialized() {
-      setInitializationStatus(false);
-    }
-
-    public void setInitializationStatus(boolean initialized) {
-      this.initialized = initialized;
-    }
-
-    public Object getValue(String key) {
-      return initMap.get(key);
-    }
-
-    public void setValue(String key,
-                         Object value) {
-      initMap.put(key, value);
-    }
-
     public void notifyEndOfNodeParsing(NodeTraversalEvent event) {
     }
   }
+
+  private static class ReturnNodeTraversalListenerImpl extends AbstractNodeTraversalListener {
+    
+    public ReturnNodeTraversalListenerImpl(StateContainer preInitializedStateContainer) {
+      super(preInitializedStateContainer);
+    }
+
+    public void notifyAboutNode(NodeTraversalEvent event) {
+      
+    }
+
+    public void notifyEndOfNodeParsing(NodeTraversalEvent event) {
+      
+    }
+
+    public Kind getTreeKind() {
+      return Kind.RETURN;
+    }
+    
+  }
+  
+  private static class ThrowNodeTraversalListenerImpl extends AbstractNodeTraversalListener {
+    
+    public ThrowNodeTraversalListenerImpl(StateContainer preInitializedStateContainer) {
+      super(preInitializedStateContainer);
+    }
+
+    public void notifyAboutNode(NodeTraversalEvent event) {
+      
+    }
+
+    public void notifyEndOfNodeParsing(NodeTraversalEvent event) {
+      
+    }
+
+    public Kind getTreeKind() {
+      return Kind.THROW;
+    }
+    
+  }
+  
 }
